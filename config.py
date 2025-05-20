@@ -1,0 +1,5 @@
+DEFAULT_MARKETING_TEMPLATE = r"M:\Project Folder Templates\Project Number - Project Name - For Marketing Drive"
+DEFAULT_WORK_TEMPLATE = r"M:\Project Folder Templates\Project Number - Project Name"
+DEFAULT_BD_TARGET = r"V:\2025"
+DEFAULT_WORK_TARGET = r"W:\2025"
+FOLDER_TO_DELETE = "1 Marketing"
