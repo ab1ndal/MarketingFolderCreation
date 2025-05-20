@@ -1,6 +1,6 @@
 # 📁 Project Folder Setup Tool
 
-This Python-based GUI tool automates the creation of structured project directories for both marketing and working drives, based on template folders. It copies, configures, and links folders with minimal user input and is ideal for architecture, engineering, and construction firms with consistent folder standards.
+This Python-based GUI tool automates the creation of structured project directories for both marketing and working drives, based on template folders of Nabih Youssef & Associates. It copies, configures, and links folders with minimal user input and is ideal for architecture, engineering, and construction firms with consistent folder standards.
 
 ---
 
@@ -36,7 +36,7 @@ project_setup_tool/
 1. **Install dependencies** (once):
 
    ```bash
-   pip install PySimpleGUI pywin32
+   pip install pywin32
    ```
 
 2. **Run the app**:
@@ -49,14 +49,15 @@ project_setup_tool/
 
    * Project Folder Name
    * Adjust default template and destination paths (optional)
-   * Click **Run**
+   * Click **Run Folder Setup**
+   * Click **Clear Log** to clear the log (optional)
 
 The tool logs and tracks each step as it:
 
 * Copies the marketing template to `V:\2025\{Project Folder}`
 * Copies the work template to `W:\2025\{Project Folder}`
 * Deletes the `1 Marketing` folder in the work folder
-* Replaces it with a shortcut to the `1 Marketing` folder in the marketing location
+* Replaces it with a shortcut to the marketing folder location in V Drive
 
 ---
 
@@ -73,7 +74,7 @@ To distribute without requiring Python:
 
 ```bash
 pip install pyinstaller
-pyinstaller --onefile --windowed app.py
+pyinstaller --onefile --windowed --name ClickFolder --icon=FolderCreatorTool.ico app.py
 ```
 
 Output will be located in the `dist/` folder.

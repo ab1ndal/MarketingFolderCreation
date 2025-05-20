@@ -9,7 +9,7 @@ def create_shortcut(target, shortcut_path, log_func):
         shortcut.WorkingDirectory = str(target.parent)
         shortcut.IconLocation = "explorer.exe"
         shortcut.save()
-        log_func(f"✅ Shortcut created: {shortcut_path} → {target}", "success")
+        log_func(f"Shortcut created: {shortcut_path} → {target}", "success")
     except Exception as e:
-        log_func(f"❌ Shortcut creation failed: {e}", "error")
+        log_func(f"Shortcut creation failed: {e}", "error")
 

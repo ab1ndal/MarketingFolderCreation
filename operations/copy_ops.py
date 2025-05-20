@@ -7,12 +7,15 @@ def copy_folder(src, dst, log_func):
     src = Path(src)
 
     if not src.exists():
-        log_func(f"❌ Source folder does not exist: {src}", "error")
+        log_func(f"Source folder does not exist: {src}", "error")
         return
 
     if dst.exists():
-        log_func(f"⚠️ Destination already exists: {dst}, deleting...", "warn")
-        shutil.rmtree(dst)
+        log_func(f"Destination already exists: {dst}. Skipping copy.", "warn")
+        return
 
-    shutil.copytree(src, dst)
-    log_func(f"✅ Copied from {src} to {dst}", "success")
+    try:
+        shutil.copytree(src, dst)
+        log_func(f"Copied from {src} to {dst}", "success")
+    except Exception as e:
+        log_func(f"Failed to copy {src} to {dst}: {e}", "error")

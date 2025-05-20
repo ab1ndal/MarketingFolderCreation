@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog, ttk, scrolledtext, messagebox
 from pathlib import Path
+import pyperclip
 
 from config import (
     DEFAULT_MARKETING_TEMPLATE,
@@ -121,12 +122,16 @@ class FolderSetupApp:
             delete_folder(work_target / FOLDER_TO_DELETE, self.write_log)
             self.progress.config(value=80)
 
-            create_shortcut(bd_target / FOLDER_TO_DELETE, work_target / SHORTCUT_NAME, self.write_log)
+            create_shortcut(bd_target, work_target / SHORTCUT_NAME, self.write_log)
             self.progress.config(value=100)
 
             self.write_log("Project setup completed successfully.", "success")
+            
+            # Copy the link to Work Drive folder in the clipboard
+            pyperclip.copy(str(work_target))
+            self.write_log(f"Copied Work Drive folder link to clipboard: {work_target}", "success")
+
         except Exception as e:
-            self.write_log(f"Unhandled error: {e}", "error")
             messagebox.showerror("Error", str(e))
 
 
