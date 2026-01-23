@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import filedialog, ttk, scrolledtext, messagebox
 from pathlib import Path
 import pyperclip
+from datetime import datetime
 
 from config import (
     DEFAULT_MARKETING_TEMPLATE,
@@ -28,11 +29,13 @@ class FolderSetupApp:
         y = (root.winfo_screenheight() // 2) - (height // 2)
         root.geometry(f"{width}x{height}+{x}+{y}")
 
+        current_year = str(datetime.now().year)
+        
         self.paths = {
             "marketing_template": tk.StringVar(value=DEFAULT_MARKETING_TEMPLATE),
             "work_template": tk.StringVar(value=DEFAULT_WORK_TEMPLATE),
-            "bd_target": tk.StringVar(value=DEFAULT_BD_TARGET),
-            "work_target": tk.StringVar(value=DEFAULT_WORK_TARGET),
+            "bd_target": tk.StringVar(value=str(Path(DEFAULT_BD_TARGET) / current_year)),
+            "work_target": tk.StringVar(value=str(Path(DEFAULT_WORK_TARGET) / current_year)),
         }
 
         self.project_name = tk.StringVar()
