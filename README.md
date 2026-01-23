@@ -36,15 +36,16 @@ project_setup_tool/
 1. **Install dependencies** (once):
 
    ```bash
-   pip install pywin32
+   python -m venv .venv
+   .venv\Scripts\activate
+   python -m pip install --upgrade pip
+   pip install -r requirements.txt
    ```
-
 2. **Run the app**:
 
    ```bash
    python app.py
    ```
-
 3. **Enter inputs**:
 
    * Project Folder Name
@@ -54,8 +55,8 @@ project_setup_tool/
 
 The tool logs and tracks each step as it:
 
-* Copies the marketing template to `V:\2025\{Project Folder}`
-* Copies the work template to `W:\2025\{Project Folder}`
+* Copies the marketing template to `V:\{current year}\{Project Folder}`
+* Copies the work template to `W:\{current year}\{Project Folder}`
 * Deletes the `1 Marketing` folder in the work folder
 * Replaces it with a shortcut to the marketing folder location in V Drive
 
