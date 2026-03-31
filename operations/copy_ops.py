@@ -1,6 +1,24 @@
-import os
+import ctypes
 from pathlib import Path
 import subprocess
+
+
+def _is_network_path(path):
+    """Return True if path is on a UNC share or a mapped network drive (Windows).
+
+    Uses GetDriveTypeW which returns immediately without network I/O.
+    DRIVE_REMOTE = 4.
+    """
+    drive = Path(path).drive
+    if not drive:
+        return False
+    if drive.startswith('\\\\'):
+        return True  # UNC path
+    try:
+        drive_type = ctypes.windll.kernel32.GetDriveTypeW(drive + '\\')
+        return drive_type == 4  # DRIVE_REMOTE
+    except Exception:
+        return False
 
 
 def copy_folder(src, dst, log_func):
@@ -11,7 +29,9 @@ def copy_folder(src, dst, log_func):
         log_func(f"Source folder does not exist: {src}", "error")
         return False
 
-    if os.path.exists(dst):
+    # Skip the existence pre-check for network/UNC destinations to avoid blocking
+    # network I/O on disconnected drives. Local destinations are checked directly.
+    if not _is_network_path(dst) and dst.exists():
         log_func(f"Destination already exists: {dst}. Skipping copy.", "warn")
         return False
 
