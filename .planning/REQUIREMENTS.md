@@ -8,8 +8,8 @@
 ### Performance
 
 - [ ] **PERF-01**: App starts in under 3 seconds when launched from a network share (switch from PyInstaller --onefile to --onedir)
-- [ ] **PERF-02**: UI remains responsive and interactive during all file operations (folder copy, delete, shortcut creation run in background thread via QThreadPool)
-- [ ] **PERF-03**: BD template copy and Work template copy run in parallel (simultaneous, not sequential) to reduce total setup time
+- [x] **PERF-02**: UI remains responsive and interactive during all file operations (folder copy, delete, shortcut creation run in background thread via QThreadPool)
+- [x] **PERF-03**: BD template copy and Work template copy run in parallel (simultaneous, not sequential) to reduce total setup time
 - [ ] **PERF-04**: Folder copy uses optimized I/O (buffered shutil or robocopy subprocess) for faster transfer over network drives
 
 ### UI Modernization
@@ -73,8 +73,8 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | PERF-01 | Phase 3: Packaging | Pending |
-| PERF-02 | Phase 1: Threading | Pending |
-| PERF-03 | Phase 1: Threading | Pending |
+| PERF-02 | Phase 1: Threading | Complete |
+| PERF-03 | Phase 1: Threading | Complete |
 | PERF-04 | Phase 1: Threading | Pending |
 | UI-01 | Phase 2: UI Migration | Pending |
 | UI-02 | Phase 2: UI Migration | Pending |
