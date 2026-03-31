@@ -41,6 +41,10 @@ class FolderSetupApp:
         self.project_name = tk.StringVar()
 
         self.build_ui()
+    
+    def open_a250_form(self):
+        # TODO: Implement A250 form functionality
+        pass
 
     def build_ui(self):
         row = 0
@@ -64,8 +68,15 @@ class FolderSetupApp:
         self.progress.grid(row=row, column=0, columnspan=3, pady=(15, 5), padx=10)
         row += 1
 
-        tk.Button(text="🚀 Run Folder Setup", command=self.run_workflow).grid(row=row, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
-        tk.Button(text="🧹 Clear Log", command=self.clear_log).grid(row=row, column=2, padx=10, sticky="ew")
+        button_frame = tk.Frame(self.root)
+        button_frame.grid(row=row, column=0, columnspan=3, padx=10, pady=5, sticky="ew")    
+        button_frame.grid_columnconfigure(0, weight=1)
+        button_frame.grid_columnconfigure(1, weight=1)
+        button_frame.grid_columnconfigure(2, weight=1)
+
+        tk.Button(button_frame, text="🚀 Run Folder Setup", command=self.run_workflow).grid(row=0, column=0, padx=5, pady=5, sticky="ew")
+        tk.Button(button_frame, text="📄 Create A250", command=self.open_a250_form).grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        tk.Button(button_frame, text="🧹 Clear Log", command=self.clear_log).grid(row=0, column=2, padx=5, pady=5, sticky="ew")
         row += 1
 
         tk.Label(text="Log Output:").grid(row=row, column=0, sticky='nw', padx=10)
