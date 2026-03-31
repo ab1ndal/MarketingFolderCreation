@@ -1,3 +1,5 @@
 pywin32
 pyinstaller
 pyperclip
+docxtpl
+PyQt6
