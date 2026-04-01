@@ -2,22 +2,22 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 1
+current_plan: 3
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-04-01T03:58:44.422Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-04-01T04:10:00Z"
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 6
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # Project State
 
 **Project:** Marketing Folder Creation Tool v2
-**Phase:** 01-pyqt6-infrastructure-threading
-**Current Plan:** 1
+**Phase:** 02-ui-migration-features
+**Current Plan:** 3
 **Status:** Executing Phase 02
 
 ---
@@ -28,6 +28,9 @@ progress:
 - Plan 01: Complete (5780326)
 - Plan 02: Complete (879b626)
 - Plan 03: Complete (9c9e935, f446251)
+- Phase 2: UI Migration & Features
+- Plan 01: Complete (app.py + validate.py updated)
+- Plan 02: Complete (14fcb03, 7810cd1)
 
 ---
 
@@ -46,6 +49,9 @@ progress:
 - [Phase 02]: Pass None as QMessageBox parent in validate_paths — function has no window reference, dialog still appears modal
 - [Phase 02]: Fall back to Path.cwd() in _generate_a250 if save_location is blank — preserves backward compatibility
 - [Phase 02]: Use subprocess.Popen explorer /select to open output folder after A250 generation — no QMessageBox needed for success case
+- [Phase 02-02]: Added 'not path' guard in validate_paths — Path("").exists() returns True on Windows (resolves to cwd), needed explicit empty string check
+- [Phase 02-02]: Patch subprocess.Popen in A250 tests — prevents Windows Explorer opening as side effect during test runs
+- [Phase 02-02]: Module-scoped qapp fixture for A250 tests — avoids creating multiple QApplication instances per test
 
 ## Performance Metrics
 
@@ -55,10 +61,10 @@ progress:
 | 01 | 02 | 2min | 1 | 2 |
 | 01 | 03 | 10min | 1 | 2 |
 
----
-| Phase 02 P01 | 2min | 2 tasks | 2 files |
+| 02 | 01 | 2min | 2 | 2 |
+| 02 | 02 | 10min | 2 | 3 |
 
 ## Last Session
 
-- **Stopped at:** Completed 02-01-PLAN.md
-- **Timestamp:** 2026-04-01T00:53:12Z
+- **Stopped at:** Completed 02-02-PLAN.md
+- **Timestamp:** 2026-04-01T04:10:00Z

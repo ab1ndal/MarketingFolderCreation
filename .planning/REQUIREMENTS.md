@@ -33,8 +33,8 @@
 - [ ] **TEST-01**: Unit tests cover copy_folder with mock filesystem (success, source missing, destination exists)
 - [ ] **TEST-02**: Unit tests cover delete_folder with mock filesystem (success, read-only files, folder missing)
 - [ ] **TEST-03**: Unit tests cover create_shortcut with mocked win32com (success, invalid paths)
-- [ ] **TEST-04**: Unit tests cover validate_paths for all validation cases (missing paths, empty project name)
-- [ ] **TEST-05**: Unit tests cover A250 generation: correct fields rendered, output file created, template missing error
+- [x] **TEST-04**: Unit tests cover validate_paths for all validation cases (missing paths, empty project name)
+- [x] **TEST-05**: Unit tests cover A250 generation: correct fields rendered, output file created, template missing error
 - [ ] **TEST-06**: UI/workflow integration tests via pytest-qt: user fills project name, clicks Run, correct folder structure created on filesystem
 
 ### Packaging
@@ -89,8 +89,8 @@
 | TEST-01 | Phase 4: Testing | Pending |
 | TEST-02 | Phase 4: Testing | Pending |
 | TEST-03 | Phase 4: Testing | Pending |
-| TEST-04 | Phase 4: Testing | Pending |
-| TEST-05 | Phase 4: Testing | Pending |
+| TEST-04 | Phase 2: Testing | Complete |
+| TEST-05 | Phase 2: Testing | Complete |
 | TEST-06 | Phase 4: Testing | Pending |
 | PKG-01 | Phase 3: Packaging | Pending |
 | PKG-02 | Phase 3: Packaging | Pending |
@@ -102,4 +102,4 @@
 
 ---
 *Requirements defined: 2026-03-31*
-*Last updated: 2026-03-31 after initial definition*
+*Last updated: 2026-04-01 — TEST-04 and TEST-05 complete (Phase 2 Plan 02)*
