@@ -20,11 +20,11 @@
 
 ### Core Workflow (Existing — must continue working)
 
-- [ ] **WF-01**: User can enter a project name and run folder setup to copy BD template to V: drive target
-- [ ] **WF-02**: User can run folder setup to copy work template to W: drive target
-- [ ] **WF-03**: Folder setup deletes the "1 Marketing" subfolder from the work folder
-- [ ] **WF-04**: Folder setup creates a Windows shortcut (.lnk) from the work folder to the BD folder
-- [ ] **WF-05**: Work folder path is copied to clipboard after successful setup
+- [x] **WF-01**: User can enter a project name and run folder setup to copy BD template to V: drive target
+- [x] **WF-02**: User can run folder setup to copy work template to W: drive target
+- [x] **WF-03**: Folder setup deletes the "1 Marketing" subfolder from the work folder
+- [x] **WF-04**: Folder setup creates a Windows shortcut (.lnk) from the work folder to the BD folder
+- [x] **WF-05**: Work folder path is copied to clipboard after successful setup
 - [ ] **WF-06**: User can browse and select custom template and target paths via native Windows file dialogs
 - [ ] **WF-07**: User can open the A250 form, fill all fields, and generate a Word document from the template
 
@@ -79,11 +79,11 @@
 | UI-01 | Phase 2: UI Migration | Pending |
 | UI-02 | Phase 2: UI Migration | Pending |
 | UI-03 | Phase 2: UI Migration | Pending |
-| WF-01 | Phase 1: Threading | Pending |
-| WF-02 | Phase 1: Threading | Pending |
-| WF-03 | Phase 1: Threading | Pending |
-| WF-04 | Phase 1: Threading | Pending |
-| WF-05 | Phase 2: UI Migration | Pending |
+| WF-01 | Phase 1: Threading | Complete |
+| WF-02 | Phase 1: Threading | Complete |
+| WF-03 | Phase 1: Threading | Complete |
+| WF-04 | Phase 1: Threading | Complete |
+| WF-05 | Phase 2: UI Migration | Complete |
 | WF-06 | Phase 2: UI Migration | Pending |
 | WF-07 | Phase 2: UI Migration | Pending |
 | TEST-01 | Phase 4: Testing | Pending |
