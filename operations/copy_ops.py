@@ -55,7 +55,7 @@ def copy_folder(src, dst, log_func):
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
         if result.returncode == 0:
-            log_func("Source and destination are already in sync (no files copied)", "info")
+            log_func(f"Source and destination are already in sync (no files copied)", "info")
             return True
         elif result.returncode <= 7:
             log_func(f"Successfully copied from {src} to {dst}", "success")
