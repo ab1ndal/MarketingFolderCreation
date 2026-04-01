@@ -35,6 +35,13 @@ def copy_folder(src, dst, log_func):
         log_func(f"Destination already exists: {dst}. Skipping copy.", "warn")
         return False
 
+    # Track whether dst existed before robocopy runs so we can interpret exit code 0
+    # correctly. For network paths we skip the pre-check above, so we record None
+    # (unknown). For local paths, by the time we reach here the pre-check above has
+    # already returned False if dst existed, so dst_existed_before will always be False
+    # for local paths.
+    dst_existed_before = dst.exists() if not _is_network_path(dst) else None
+
     log_func(f"Starting robocopy from {src} to {dst}...", "info")
 
     cmd = [
@@ -55,7 +62,12 @@ def copy_folder(src, dst, log_func):
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
         if result.returncode == 0:
-            log_func(f"Source and destination are already in sync (no files copied)", "info")
+            if dst_existed_before is False:
+                # Destination was new — robocopy created it but source template was empty
+                log_func(f"Copied to new folder {dst} (source template is empty)", "warn")
+            else:
+                # dst existed before OR we could not determine (network path) — genuine in-sync
+                log_func(f"Source and destination are already in sync (no files copied)", "info")
             return True
         elif result.returncode <= 7:
             log_func(f"Successfully copied from {src} to {dst}", "success")
