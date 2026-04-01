@@ -35,7 +35,7 @@
 - [ ] **TEST-03**: Unit tests cover create_shortcut with mocked win32com (success, invalid paths)
 - [x] **TEST-04**: Unit tests cover validate_paths for all validation cases (missing paths, empty project name)
 - [x] **TEST-05**: Unit tests cover A250 generation: correct fields rendered, output file created, template missing error
-- [ ] **TEST-06**: UI/workflow integration tests via pytest-qt: user fills project name, clicks Run, correct folder structure created on filesystem
+- [x] **TEST-06**: UI/workflow integration tests via pytest-qt: user fills project name, clicks Run, correct folder structure created on filesystem
 
 ### Packaging
 
@@ -91,7 +91,7 @@
 | TEST-03 | Phase 4: Testing | Pending |
 | TEST-04 | Phase 2: Testing | Complete |
 | TEST-05 | Phase 2: Testing | Complete |
-| TEST-06 | Phase 4: Testing | Pending |
+| TEST-06 | Phase 2: Testing | Complete |
 | PKG-01 | Phase 3: Packaging | Pending |
 | PKG-02 | Phase 3: Packaging | Pending |
 

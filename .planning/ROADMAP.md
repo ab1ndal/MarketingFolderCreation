@@ -64,12 +64,12 @@ Plans:
 5. User can open A250 form, fill all fields, and generate a Word document from template successfully
 6. UI/workflow integration tests pass, confirming user can fill project name, click Run, and correct folder structure is created on filesystem
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans executed
 
 Plans:
 - [x] 02-01-PLAN.md — UI polish: progress step label, error dialogs, A250 save_location fix (UI-01, UI-02, UI-03, WF-06, WF-07)
 - [x] 02-02-PLAN.md — Unit tests for validate_paths and A250 generation (TEST-04, TEST-05)
-- [ ] 02-03-PLAN.md — pytest-qt integration tests: fill→run→filesystem workflow (TEST-06)
+- [x] 02-03-PLAN.md — pytest-qt integration tests: fill→run→filesystem workflow (TEST-06)
 
 ---
 
@@ -99,7 +99,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. PyQt6 Infrastructure & Threading | 3/3 | Complete | 2026-04-01 |
-| 2. UI Migration & Features | 2/3 | In Progress|  |
+| 2. UI Migration & Features | 3/3 | Complete | 2026-03-31 |
 | 3. Packaging & Deployment | 0/? | Not started | — |
 
 ---
@@ -136,4 +136,4 @@ Plans:
 ---
 
 *Roadmap created: 2026-03-31*
-*Last updated: 2026-04-01 — Phase 2 Plan 02 complete (TEST-04, TEST-05 satisfied)*
+*Last updated: 2026-03-31 — Phase 2 complete (3/3 plans done; TEST-06 satisfied via pytest-qt integration tests)*
