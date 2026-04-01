@@ -81,8 +81,9 @@ progress:
 |---|-------------|------|--------|-----------|
 | 260331-v5u | Improve the A250 input form with grouped sections for easier filling | 2026-04-01 | fe0b366 | [260331-v5u-improve-the-a250-input-form-with-grouped](.planning/quick/260331-v5u-improve-the-a250-input-form-with-grouped/) |
 | 260401-g9c | Fix copy_folder exit-code-0 false-positive 'already in sync' message | 2026-04-01 | e0e7d96 | [260401-g9c-fix-source-destination-sync-check-giving](.planning/quick/260401-g9c-fix-source-destination-sync-check-giving/) |
+| 260401-ghb | Fix "Failed to load python DLL" error — rename exe ClickFolder v2 -> ClickFolder_v2 | 2026-04-01 | c70c44d | [260401-ghb-fix-failed-to-load-python-dll-error-in-p](.planning/quick/260401-ghb-fix-failed-to-load-python-dll-error-in-p/) |
 
 ## Last Session
 
-- **Stopped at:** Completed quick task 260401-g9c (fix copy_folder false-positive sync check)
-- **Timestamp:** 2026-04-01T17:00:00Z
+- **Stopped at:** Completed quick task 260401-ghb — at checkpoint:human-verify for ClickFolder_v2.exe launch test
+- **Timestamp:** 2026-04-01T18:55:00Z
