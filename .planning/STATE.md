@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: 1
 status: executing
-stopped_at: "03-02 Task 1 complete (bundle built); awaiting human verification at checkpoint Task 2"
-last_updated: "2026-04-01T16:32:00Z"
+stopped_at: Completed 03-02-PLAN.md (bundle built and human-verified)
+last_updated: "2026-04-01T16:34:58.427Z"
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 # Project State
@@ -59,6 +59,7 @@ progress:
 - [Phase 03-01]: --onedir spec uses COLLECT+exclude_binaries=True; win32com.shell/shell.shell/win32timezone as hiddenimports for COM dispatch
 - [Phase 03-01]: _resource_path helper in app.py uses getattr(sys, '_MEIPASS', Path(__file__).parent) for transparent dev/bundle template resolution
 - [Phase 03-02]: PyInstaller 6.x places all datas in _internal/ subdirectory; sys._MEIPASS points to _internal/ so _resource_path resolves correctly at runtime
+- [Phase 03-packaging-deployment]: PyInstaller 6.x changed onedir layout: all datas now in _internal/ subdirectory; sys._MEIPASS still resolves correctly at runtime so _resource_path works unchanged
 
 ## Performance Metrics
 
@@ -72,6 +73,7 @@ progress:
 | 02 | 02 | 10min | 2 | 3 |
 | 02 | 03 | 8min | 2 | 2 |
 | Phase 03 P01 | 5min | 2 tasks | 2 files |
+| Phase 03-packaging-deployment P02 | 10min | 2 tasks | 0 files |
 
 ## Quick Tasks Completed
 
@@ -81,5 +83,5 @@ progress:
 
 ## Last Session
 
-- **Stopped at:** 03-02 Task 1 complete — bundle built; at checkpoint Task 2 awaiting human exe launch verification
+- **Stopped at:** Completed 03-02-PLAN.md (bundle built and human-verified)
 - **Timestamp:** 2026-04-01T16:32:00Z

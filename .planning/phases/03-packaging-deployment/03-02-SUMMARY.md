@@ -43,14 +43,14 @@ completed: 2026-03-31
 
 # Phase 3 Plan 02: Build & Verify Bundle Summary
 
-**PyInstaller 6.x --onedir bundle built successfully; MarketingFolderCreation.exe with A250.docx and qwindows.dll platform plugin verified; awaiting human launch test**
+**PyInstaller 6.x --onedir bundle built and human-verified: exe launches in under 3 seconds with no console window, A250.docx generation confirmed working from bundled template**
 
 ## Performance
 
 - **Duration:** ~10 min
 - **Started:** 2026-04-01T16:21:51Z
 - **Completed:** 2026-04-01T16:32:00Z
-- **Tasks:** 1 auto + 1 human-verify checkpoint
+- **Tasks:** 2 (1 auto + 1 human-verify checkpoint — APPROVED)
 - **Files modified:** 0 (dist/ is gitignored)
 
 ## Accomplishments
@@ -59,13 +59,14 @@ completed: 2026-03-31
 - Verified EXE exists at dist/MarketingFolderCreation/MarketingFolderCreation.exe
 - Verified A250.docx bundled at dist/MarketingFolderCreation/_internal/templates/A250.docx (PyInstaller 6.x _internal layout)
 - Verified qwindows.dll present at dist/MarketingFolderCreation/_internal/PyQt6/Qt6/plugins/platforms/qwindows.dll
-- Human verification of exe launch, A250 generation, startup speed pending (checkpoint returned)
+- Human verification APPROVED: window appeared within 3 seconds (PERF-01 met), A250 generation produced .docx file (PKG-02 met), no console window (PKG-01 met), no startup errors in log panel
 
 ## Task Commits
 
-Task 1 produced no source file changes (dist/ is gitignored). The build artifact exists on disk.
+1. **Task 1: Build the --onedir bundle with PyInstaller** - `671b322` (docs)
+2. **Task 2: Human verification checkpoint** - human-approved; no code changes (checkpoint result)
 
-**Plan metadata:** _(docs commit follows after checkpoint approval)_
+**Plan metadata:** _(docs commit follows)_
 
 ## Files Created/Modified
 
@@ -103,9 +104,10 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 
-- Bundle at dist/MarketingFolderCreation/ is ready for human launch verification (Task 2 checkpoint)
-- After human approval: bundle can be copied to network share for distribution
-- Phase 03 Plan 03 (if any) or project completion follows human approval
+- Phase 3 packaging is COMPLETE — bundle built and human-verified
+- dist/MarketingFolderCreation/ is the distributable artifact ready for network share deployment
+- To deploy: copy the entire dist/MarketingFolderCreation/ folder to the network share; users double-click MarketingFolderCreation.exe directly
+- Phase 03 Plan 03 follows (if any), otherwise project is complete
 
 ---
 *Phase: 03-packaging-deployment*
