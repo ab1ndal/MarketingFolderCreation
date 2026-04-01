@@ -15,7 +15,7 @@ def validate_paths(paths: dict, log_func) -> bool:
         "work_target": "Work Target (W:)",
     }
     for key, path in paths.items():
-        if not Path(path).exists():
+        if not path or not Path(path).exists():
             label = label_names.get(key, key)
             msg = f"Path not found: {label}\n{path}"
             log_func(f"Invalid path: {label} -> {path}", "error")
