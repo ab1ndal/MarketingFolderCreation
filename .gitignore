@@ -9,3 +9,7 @@ PySimpleGUI
 # PyInstaller
 dist
 build
+
+.coverage
+.claude
+.pytest_cache
