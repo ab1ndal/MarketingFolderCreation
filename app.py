@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QProgressBar, QTextEdit,
     QFileDialog, QMessageBox, QDialog, QScrollArea, QFormLayout,
-    QDialogButtonBox,
+    QDialogButtonBox, QGroupBox,
 )
 from PyQt6.QtCore import Qt, pyqtSlot
 from PyQt6.QtGui import QTextCursor, QFont
@@ -196,7 +196,7 @@ class FolderSetupApp(QMainWindow):
     def _open_a250_form(self):
         dialog = QDialog(self)
         dialog.setWindowTitle("Create A250")
-        dialog.resize(700, 750)
+        dialog.resize(700, 780)
 
         outer_layout = QVBoxLayout(dialog)
 
@@ -204,26 +204,58 @@ class FolderSetupApp(QMainWindow):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         container = QWidget()
-        form = QFormLayout(container)
+        container_layout = QVBoxLayout(container)
         scroll.setWidget(container)
         outer_layout.addWidget(scroll)
 
-        fields = [
-            "project_title", "project_address", "nya_project_code", "client_project_code",
-            "client", "client_address", "client_phone", "client_mobile",
-            "client_email", "client_invoice", "client_office",
-            "Fname_R", "Lname_R", "title_R", "licenses",
-            "invoice_to",
-            "request_date", "work_type", "project_description", "detailed_scope",
-            "fee",
-            "save_location", "a250_creator",
+        a250_vars = {}
+
+        groups = [
+            ("Project Info", [
+                ("project_title",       "Project Title"),
+                ("project_address",     "Project Address"),
+                ("nya_project_code",    "NYA Project Code"),
+                ("client_project_code", "Client Project Code"),
+            ]),
+            ("Client Contact", [
+                ("client",         "Client Name"),
+                ("client_address", "Client Address"),
+                ("client_phone",   "Phone"),
+                ("client_mobile",  "Mobile"),
+                ("client_email",   "Email"),
+                ("client_office",  "Office"),
+            ]),
+            ("Billing", [
+                ("client_invoice", "Invoice Address"),
+                ("invoice_to",     "Invoice To"),
+                ("Fname_R",        "Recipient First Name"),
+                ("Lname_R",        "Recipient Last Name"),
+                ("title_R",        "Recipient Title"),
+                ("licenses",       "Licenses"),
+            ]),
+            ("Scope & Fee", [
+                ("request_date",        "Request Date"),
+                ("work_type",           "Work Type"),
+                ("project_description", "Project Description"),
+                ("detailed_scope",      "Detailed Scope"),
+                ("fee",                 "Fee"),
+            ]),
+            ("Output", [
+                ("save_location", "Save Location"),
+                ("a250_creator",  "Created By"),
+            ]),
         ]
 
-        a250_vars = {}
-        for field in fields:
-            line_edit = QLineEdit()
-            form.addRow(field, line_edit)
-            a250_vars[field] = line_edit
+        for section_title, field_pairs in groups:
+            group_box = QGroupBox(section_title)
+            form = QFormLayout(group_box)
+            for key, label in field_pairs:
+                line_edit = QLineEdit()
+                form.addRow(label, line_edit)
+                a250_vars[key] = line_edit
+            container_layout.addWidget(group_box)
+
+        container_layout.addStretch()
 
         # Buttons
         btn_box = QDialogButtonBox()
