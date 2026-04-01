@@ -1,4 +1,5 @@
 import sys
+import subprocess
 import pyperclip
 from datetime import datetime
 from pathlib import Path
@@ -82,6 +83,10 @@ class FolderSetupApp(QMainWindow):
         self.progress_bar.setValue(0)
         layout.addWidget(self.progress_bar)
 
+        self.step_label = QLabel("")
+        self.step_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.step_label)
+
         # Row 7: Buttons
         btn_row = QHBoxLayout()
         self.run_btn = QPushButton("Run Folder Setup")
@@ -134,6 +139,7 @@ class FolderSetupApp(QMainWindow):
     @pyqtSlot(int, str)
     def _update_progress(self, value: int, description: str):
         self.progress_bar.setValue(value)
+        self.step_label.setText(description)
         self.setWindowTitle(f"Project Folder Setup Tool — {description}")
 
     def _run_workflow(self):
@@ -176,6 +182,11 @@ class FolderSetupApp(QMainWindow):
             self.write_log(f"Copied Work Drive folder link to clipboard: {work_target}", "success")
             self.write_log("Project setup completed successfully.", "success")
         else:
+            QMessageBox.warning(
+                self,
+                "Workflow Incomplete",
+                "The folder setup did not complete.\nCheck the log below for details.",
+            )
             self.write_log("Workflow did not complete (cancelled or error).", "warn")
 
     # ------------------------------------------------------------------
@@ -231,10 +242,12 @@ class FolderSetupApp(QMainWindow):
             data["current_date"] = datetime.now().strftime("%m/%d/%Y")
             template_path = Path("templates/A250.docx")
             output_name = f"A250_{data.get('project_title', 'output')}.docx"
-            output_path = Path.cwd() / output_name
+            save_loc = data.get("save_location", "").strip()
+            output_path = (Path(save_loc) / output_name) if save_loc else (Path.cwd() / output_name)
             doc = DocxTemplate(template_path)
             doc.render(data)
             doc.save(output_path)
+            subprocess.Popen(f'explorer /select,"{output_path}"', shell=True)
             self.write_log(f"A250 generated: {output_path}", "success")
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
