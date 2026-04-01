@@ -80,8 +80,9 @@ progress:
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260331-v5u | Improve the A250 input form with grouped sections for easier filling | 2026-04-01 | fe0b366 | [260331-v5u-improve-the-a250-input-form-with-grouped](.planning/quick/260331-v5u-improve-the-a250-input-form-with-grouped/) |
+| 260401-g9c | Fix copy_folder exit-code-0 false-positive 'already in sync' message | 2026-04-01 | e0e7d96 | [260401-g9c-fix-source-destination-sync-check-giving](.planning/quick/260401-g9c-fix-source-destination-sync-check-giving/) |
 
 ## Last Session
 
-- **Stopped at:** Completed 03-02-PLAN.md (bundle built and human-verified)
-- **Timestamp:** 2026-04-01T16:32:00Z
+- **Stopped at:** Completed quick task 260401-g9c (fix copy_folder false-positive sync check)
+- **Timestamp:** 2026-04-01T17:00:00Z
