@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: 1
 status: executing
-stopped_at: "Completed 03-01: PyInstaller spec and _MEIPASS patch"
-last_updated: "2026-04-01T16:20:54.345Z"
+stopped_at: "03-02 Task 1 complete (bundle built); awaiting human verification at checkpoint Task 2"
+last_updated: "2026-04-01T16:32:00Z"
 progress:
   total_phases: 3
   completed_phases: 2
@@ -58,6 +58,7 @@ progress:
 - [Phase 02-03]: Patch app.QMessageBox.warning in cancel test — finished(False) triggers blocking dialog in test context
 - [Phase 03-01]: --onedir spec uses COLLECT+exclude_binaries=True; win32com.shell/shell.shell/win32timezone as hiddenimports for COM dispatch
 - [Phase 03-01]: _resource_path helper in app.py uses getattr(sys, '_MEIPASS', Path(__file__).parent) for transparent dev/bundle template resolution
+- [Phase 03-02]: PyInstaller 6.x places all datas in _internal/ subdirectory; sys._MEIPASS points to _internal/ so _resource_path resolves correctly at runtime
 
 ## Performance Metrics
 
@@ -80,5 +81,5 @@ progress:
 
 ## Last Session
 
-- **Stopped at:** Completed 03-01: PyInstaller spec and _MEIPASS patch
-- **Timestamp:** 2026-04-01T05:26:12Z
+- **Stopped at:** 03-02 Task 1 complete — bundle built; at checkpoint Task 2 awaiting human exe launch verification
+- **Timestamp:** 2026-04-01T16:32:00Z
