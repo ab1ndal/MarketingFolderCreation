@@ -2,23 +2,23 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: Not started
-status: planning
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-04-01T04:12:52.910Z"
+current_plan: 1
+status: executing
+stopped_at: "Completed 03-01: PyInstaller spec and _MEIPASS patch"
+last_updated: "2026-04-01T16:20:54.345Z"
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 8
+  completed_plans: 7
 ---
 
 # Project State
 
 **Project:** Marketing Folder Creation Tool v2
 **Phase:** 02-ui-migration-features
-**Current Plan:** Not started
-**Status:** Ready to plan
+**Current Plan:** 1
+**Status:** Executing Phase 03
 
 ---
 
@@ -56,6 +56,8 @@ progress:
 - [Phase 02-03]: Use qtbot.waitUntil(run_btn.isEnabled) for cancel test — fast robocopy on tiny temp dir completes before waitSignal is registered (race condition)
 - [Phase 02-03]: Patch app.pyperclip.copy in happy path test — clipboard contention raises PyperclipWindowsException in headless test environment
 - [Phase 02-03]: Patch app.QMessageBox.warning in cancel test — finished(False) triggers blocking dialog in test context
+- [Phase 03-01]: --onedir spec uses COLLECT+exclude_binaries=True; win32com.shell/shell.shell/win32timezone as hiddenimports for COM dispatch
+- [Phase 03-01]: _resource_path helper in app.py uses getattr(sys, '_MEIPASS', Path(__file__).parent) for transparent dev/bundle template resolution
 
 ## Performance Metrics
 
@@ -68,6 +70,7 @@ progress:
 | 02 | 01 | 2min | 2 | 2 |
 | 02 | 02 | 10min | 2 | 3 |
 | 02 | 03 | 8min | 2 | 2 |
+| Phase 03 P01 | 5min | 2 tasks | 2 files |
 
 ## Quick Tasks Completed
 
@@ -77,5 +80,5 @@ progress:
 
 ## Last Session
 
-- **Stopped at:** Completed quick task 260331-v5u: Improve A250 input form
+- **Stopped at:** Completed 03-01: PyInstaller spec and _MEIPASS patch
 - **Timestamp:** 2026-04-01T05:26:12Z

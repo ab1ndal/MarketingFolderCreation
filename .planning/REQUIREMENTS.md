@@ -7,7 +7,7 @@
 
 ### Performance
 
-- [ ] **PERF-01**: App starts in under 3 seconds when launched from a network share (switch from PyInstaller --onefile to --onedir)
+- [x] **PERF-01**: App starts in under 3 seconds when launched from a network share (switch from PyInstaller --onefile to --onedir)
 - [x] **PERF-02**: UI remains responsive and interactive during all file operations (folder copy, delete, shortcut creation run in background thread via QThreadPool)
 - [x] **PERF-03**: BD template copy and Work template copy run in parallel (simultaneous, not sequential) to reduce total setup time
 - [ ] **PERF-04**: Folder copy uses optimized I/O (buffered shutil or robocopy subprocess) for faster transfer over network drives
@@ -39,8 +39,8 @@
 
 ### Packaging
 
-- [ ] **PKG-01**: Application distributed as a PyInstaller --onedir bundle (folder with exe + DLLs, no extraction on launch)
-- [ ] **PKG-02**: Bundle includes all dependencies (PyQt6, win32com, docxtpl, A250 template) — no Python install required on target machine
+- [x] **PKG-01**: Application distributed as a PyInstaller --onedir bundle (folder with exe + DLLs, no extraction on launch)
+- [x] **PKG-02**: Bundle includes all dependencies (PyQt6, win32com, docxtpl, A250 template) — no Python install required on target machine
 
 ## v2 Requirements
 
@@ -72,7 +72,7 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PERF-01 | Phase 3: Packaging | Pending |
+| PERF-01 | Phase 3: Packaging | Complete |
 | PERF-02 | Phase 1: Threading | Complete |
 | PERF-03 | Phase 1: Threading | Complete |
 | PERF-04 | Phase 1: Threading | Pending |
@@ -92,8 +92,8 @@
 | TEST-04 | Phase 2: Testing | Complete |
 | TEST-05 | Phase 2: Testing | Complete |
 | TEST-06 | Phase 2: Testing | Complete |
-| PKG-01 | Phase 3: Packaging | Pending |
-| PKG-02 | Phase 3: Packaging | Pending |
+| PKG-01 | Phase 3: Packaging | Complete |
+| PKG-02 | Phase 3: Packaging | Complete |
 
 **Coverage:**
 - v1 requirements: 22 total

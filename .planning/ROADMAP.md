@@ -90,7 +90,7 @@ Plans:
 4. Hidden imports (win32com.shell, win32com.shell.shell, win32timezone) and platform plugin dlls are correctly bundled for reliable startup
 5. A250 template is bundled in exe and resolved at runtime; Word document generation works from bundled template
 
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 03-01-PLAN.md — Write production PyInstaller spec (--onedir, hidden imports, A250 datas) and patch app.py for sys._MEIPASS template resolution (PKG-01, PKG-02, PERF-01)
@@ -104,7 +104,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. PyQt6 Infrastructure & Threading | 3/3 | Complete | 2026-04-01 |
 | 2. UI Migration & Features | 3/3 | Complete | 2026-03-31 |
-| 3. Packaging & Deployment | 0/2 | Not started | — |
+| 3. Packaging & Deployment | 1/2 | In Progress|  |
 
 ---
 
