@@ -22,6 +22,16 @@ from utils.validate import validate_paths
 from workers import WorkflowWorker
 
 
+def _resource_path(relative: str) -> Path:
+    """Resolve a resource path that works both in dev and in a PyInstaller bundle.
+
+    In a bundle, sys._MEIPASS is set to the extraction root.
+    In dev, falls back to the directory containing app.py.
+    """
+    base = Path(getattr(sys, '_MEIPASS', Path(__file__).parent))
+    return base / relative
+
+
 class FolderSetupApp(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -272,7 +282,7 @@ class FolderSetupApp(QMainWindow):
         try:
             data = {k: v.text() for k, v in a250_vars.items()}
             data["current_date"] = datetime.now().strftime("%m/%d/%Y")
-            template_path = Path("templates/A250.docx")
+            template_path = _resource_path("templates/A250.docx")
             output_name = f"A250_{data.get('project_title', 'output')}.docx"
             save_loc = data.get("save_location", "").strip()
             output_path = (Path(save_loc) / output_name) if save_loc else (Path.cwd() / output_name)
