@@ -14,9 +14,9 @@
 
 ### UI Modernization
 
-- [ ] **UI-01**: Application is fully migrated from Tkinter to PyQt6 with a clean, professional layout
-- [ ] **UI-02**: Progress bar displays plain-English step descriptions during workflow (e.g. "Copying BD template...", "Creating shortcut...")
-- [ ] **UI-03**: All error conditions display human-readable dialog messages — no stack traces, no technical jargon visible to users
+- [x] **UI-01**: Application is fully migrated from Tkinter to PyQt6 with a clean, professional layout
+- [x] **UI-02**: Progress bar displays plain-English step descriptions during workflow (e.g. "Copying BD template...", "Creating shortcut...")
+- [x] **UI-03**: All error conditions display human-readable dialog messages — no stack traces, no technical jargon visible to users
 
 ### Core Workflow (Existing — must continue working)
 
@@ -25,8 +25,8 @@
 - [x] **WF-03**: Folder setup deletes the "1 Marketing" subfolder from the work folder
 - [x] **WF-04**: Folder setup creates a Windows shortcut (.lnk) from the work folder to the BD folder
 - [x] **WF-05**: Work folder path is copied to clipboard after successful setup
-- [ ] **WF-06**: User can browse and select custom template and target paths via native Windows file dialogs
-- [ ] **WF-07**: User can open the A250 form, fill all fields, and generate a Word document from the template
+- [x] **WF-06**: User can browse and select custom template and target paths via native Windows file dialogs
+- [x] **WF-07**: User can open the A250 form, fill all fields, and generate a Word document from the template
 
 ### Testing
 
@@ -76,16 +76,16 @@
 | PERF-02 | Phase 1: Threading | Complete |
 | PERF-03 | Phase 1: Threading | Complete |
 | PERF-04 | Phase 1: Threading | Pending |
-| UI-01 | Phase 2: UI Migration | Pending |
-| UI-02 | Phase 2: UI Migration | Pending |
-| UI-03 | Phase 2: UI Migration | Pending |
+| UI-01 | Phase 2: UI Migration | Complete |
+| UI-02 | Phase 2: UI Migration | Complete |
+| UI-03 | Phase 2: UI Migration | Complete |
 | WF-01 | Phase 1: Threading | Complete |
 | WF-02 | Phase 1: Threading | Complete |
 | WF-03 | Phase 1: Threading | Complete |
 | WF-04 | Phase 1: Threading | Complete |
 | WF-05 | Phase 2: UI Migration | Complete |
-| WF-06 | Phase 2: UI Migration | Pending |
-| WF-07 | Phase 2: UI Migration | Pending |
+| WF-06 | Phase 2: UI Migration | Complete |
+| WF-07 | Phase 2: UI Migration | Complete |
 | TEST-01 | Phase 4: Testing | Pending |
 | TEST-02 | Phase 4: Testing | Pending |
 | TEST-03 | Phase 4: Testing | Pending |

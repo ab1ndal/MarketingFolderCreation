@@ -2,23 +2,23 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: Not started
-status: planning
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-04-01T01:00:49.087Z"
+current_plan: 1
+status: executing
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-04-01T03:58:44.422Z"
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 6
+  completed_plans: 4
 ---
 
 # Project State
 
 **Project:** Marketing Folder Creation Tool v2
 **Phase:** 01-pyqt6-infrastructure-threading
-**Current Plan:** Not started
-**Status:** Ready to plan
+**Current Plan:** 1
+**Status:** Executing Phase 02
 
 ---
 
@@ -43,6 +43,9 @@ progress:
 - Work folder path copied to clipboard in _on_workflow_finished for WF-05 compliance
 
 ---
+- [Phase 02]: Pass None as QMessageBox parent in validate_paths — function has no window reference, dialog still appears modal
+- [Phase 02]: Fall back to Path.cwd() in _generate_a250 if save_location is blank — preserves backward compatibility
+- [Phase 02]: Use subprocess.Popen explorer /select to open output folder after A250 generation — no QMessageBox needed for success case
 
 ## Performance Metrics
 
@@ -53,8 +56,9 @@ progress:
 | 01 | 03 | 10min | 1 | 2 |
 
 ---
+| Phase 02 P01 | 2min | 2 tasks | 2 files |
 
 ## Last Session
 
-- **Stopped at:** Completed 01-03-PLAN.md
+- **Stopped at:** Completed 02-01-PLAN.md
 - **Timestamp:** 2026-04-01T00:53:12Z
