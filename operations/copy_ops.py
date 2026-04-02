@@ -60,16 +60,8 @@ def copy_folder(src, dst, log_func):
     ]
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-        if result.returncode == 0:
-            if dst_existed_before is False:
-                # Destination was new — robocopy created it but source template was empty
-                log_func(f"Copied to new folder {dst} (source template is empty)", "warn")
-            else:
-                # dst existed before OR we could not determine (network path) — genuine in-sync
-                log_func(f"Source and destination are already in sync (no files copied)", "info")
-            return True
-        elif result.returncode <= 7:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False, creationflags=subprocess.CREATE_NO_WINDOW)
+        if result.returncode <= 7:
             log_func(f"Successfully copied from {src} to {dst}", "success")
             return True
         else:

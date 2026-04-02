@@ -1,12 +1,9 @@
-# -*- mode: python ; coding: utf-8 -*-
-
+# -*- mode: python ; coding: utf-8 -*- 
 a = Analysis(
     ['app.py'],
     pathex=[],
     binaries=[],
-    datas=[
-        ('templates/A250.docx', 'templates'),
-    ],
+    datas=[('templates/A250.docx', 'templates')],
     hiddenimports=[
         'win32com.shell',
         'win32com.shell.shell',
@@ -20,7 +17,6 @@ a = Analysis(
     optimize=0,
 )
 pyz = PYZ(a.pure)
-
 exe = EXE(
     pyz,
     a.scripts,
@@ -30,7 +26,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     console=False,
     disable_windowed_traceback=False,
@@ -40,14 +36,13 @@ exe = EXE(
     entitlements_file=None,
     icon='FolderCreatorTool.ico',
 )
-
 coll = COLLECT(
     exe,
     a.binaries,
     a.zipfiles,
     a.datas,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     name='ClickFolder_v2',
 )

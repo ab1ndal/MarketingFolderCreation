@@ -27,7 +27,7 @@ def delete_with_robocopy_mirror(folder_path, log_func):
                 "/NJH",
                 "/NJS",
             ]
-            result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            result = subprocess.run(cmd, capture_output=True, text=True, check=False, creationflags=subprocess.CREATE_NO_WINDOW)
             if result.returncode <= 7:
                 # Contents cleared by robocopy mirror; remove the now-empty folder
                 try:
