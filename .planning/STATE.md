@@ -5,7 +5,7 @@ milestone_name: milestone
 current_plan: Not started
 status: completed
 stopped_at: Completed 03-02-PLAN.md (bundle built and human-verified)
-last_updated: "2026-04-01T16:40:18.921Z"
+last_updated: "2026-04-02T22:54:05Z"
 progress:
   total_phases: 3
   completed_phases: 3
@@ -86,8 +86,9 @@ progress:
 | 260402-jpl | Fix TemplateSyntaxError "unexpected }" on Generate A250 — single-brace bug in A250.docx | 2026-04-02 | a98efcf | [260402-jpl-fix-unexpected-error-when-generating-a25](.planning/quick/260402-jpl-fix-unexpected-error-when-generating-a25/) |
 | 260402-kmm | Add rich-text editor toolbar (B/I/U/S/Bullet/Clear) to A250 project_description and detailed_scope fields | 2026-04-02 | 6a6624f | [260402-kmm-add-full-rich-text-editor-toolbar-to-a25](.planning/quick/260402-kmm-add-full-rich-text-editor-toolbar-to-a25/) |
 | 260402-l91 | Replace QTextEdit RichTextEditor with QWebEngineView + Quill offline editor for A250 form | 2026-04-02 | 7bc0be4 | [260402-l91-replace-richtexteditor-with-qwebenginevi](.planning/quick/260402-l91-replace-richtexteditor-with-qwebenginevi/) |
+| 260402-lxo | Remove dead RichTextEditor class, apply Calibri Light 10pt + dark theme to Quill editor | 2026-04-02 | f72108d | [260402-lxo-clean-unused-richtexteditor-code-and-set](.planning/quick/260402-lxo-clean-unused-richtexteditor-code-and-set/) |
 
 ## Last Session
 
-- **Stopped at:** Completed quick task 260402-l91 — replace RichTextEditor with QWebEngineView + Quill offline editor
-- **Timestamp:** 2026-04-02T22:22:00Z
+- **Stopped at:** Completed quick task 260402-lxo — dead code removal and Calibri Light + dark theme for Quill editor
+- **Timestamp:** 2026-04-02T22:54:05Z
