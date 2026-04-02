@@ -329,7 +329,7 @@ class FolderSetupApp(QMainWindow):
             client   = data.get("client", "").strip()
 
             licence_sep = ", " if license else ""
-            title_sep = "\n" if len(name) + len(license) + len(title) > 60 else ", "
+            title_sep = "\n\n" if len(name) + len(license) + len(title) > 60 else "\n"
             data["requested_by"] = f"{name}{licence_sep}{license}{title_sep}{title}\n{client}"
 
             # --- Composite: client_signed ---
@@ -339,7 +339,7 @@ class FolderSetupApp(QMainWindow):
             # --- Composite: invoice_to ---
             invoice_custom = data.get("invoice_to", "").strip()
             if not invoice_custom:
-                data["invoice_to"] = 'Same as "Requested By"\n'+data["client"]
+                data["invoice_to"] = data["requested_by"]
             # else leave data["invoice_to"] as the custom text the user entered
             template_path = _resource_path("templates/A250.docx")
             if data.get("file_name"):

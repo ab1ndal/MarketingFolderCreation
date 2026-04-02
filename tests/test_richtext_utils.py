@@ -1,19 +1,6 @@
-"""Unit tests for utils.richtext_utils — html_to_richtext and RichTextEditor."""
+"""Unit tests for utils.richtext_utils — html_to_richtext."""
 
-import sys
 import pytest
-from unittest.mock import Mock
-
-
-# --------------------------------------------------------------------------- #
-# Module-scoped QApplication for widget tests
-# --------------------------------------------------------------------------- #
-
-@pytest.fixture(scope="module")
-def qapp():
-    from PyQt6.QtWidgets import QApplication
-    app = QApplication.instance() or QApplication(sys.argv)
-    yield app
 
 
 # --------------------------------------------------------------------------- #
@@ -163,51 +150,6 @@ class TestHtmlToRichtext:
         xml = self._get_xml(rt)
         assert 'w:i' in xml, f"Expected w:i in XML: {xml}"
 
-
-# --------------------------------------------------------------------------- #
-# RichTextEditor widget tests — require QApplication
-# --------------------------------------------------------------------------- #
-
-class TestRichTextEditor:
-    """Tests for RichTextEditor widget instantiation and interface."""
-
-    def test_instantiation(self, qapp):
-        """RichTextEditor can be instantiated without error."""
-        from utils.richtext_utils import RichTextEditor
-        widget = RichTextEditor()
-        assert widget is not None
-
-    def test_instantiation_with_height(self, qapp):
-        """RichTextEditor accepts height parameter."""
-        from utils.richtext_utils import RichTextEditor
-        widget = RichTextEditor(height=120)
-        assert widget is not None
-
-    def test_to_html_returns_string(self, qapp):
-        """toHtml() returns a string."""
-        from utils.richtext_utils import RichTextEditor
-        widget = RichTextEditor()
-        result = widget.toHtml()
-        assert isinstance(result, str)
-
-    def test_to_plain_text_returns_string(self, qapp):
-        """toPlainText() returns a string."""
-        from utils.richtext_utils import RichTextEditor
-        widget = RichTextEditor()
-        result = widget.toPlainText()
-        assert isinstance(result, str)
-
-    def test_set_placeholder_text(self, qapp):
-        """setPlaceholderText() does not raise."""
-        from utils.richtext_utils import RichTextEditor
-        widget = RichTextEditor()
-        widget.setPlaceholderText("Enter description...")
-
-    def test_exports(self):
-        """utils.richtext_utils exports RichTextEditor and html_to_richtext."""
-        from utils.richtext_utils import RichTextEditor, html_to_richtext
-        assert callable(html_to_richtext)
-        assert RichTextEditor is not None
 
 
 # --------------------------------------------------------------------------- #

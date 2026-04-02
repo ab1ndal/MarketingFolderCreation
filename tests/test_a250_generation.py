@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch, MagicMock
 from PyQt6.QtWidgets import QApplication, QLineEdit, QComboBox, QTextEdit
 from docxtpl import DocxTemplate
 from docx import Document
-from utils.richtext_utils import RichTextEditor
+from utils.web_editor import WebRichTextEditor
 
 
 # Ensure QApplication exists for widget tests
@@ -45,8 +45,8 @@ class TestA250Generation:
             m.toPlainText = Mock(return_value="")
             vars_[f] = m
         for f in RICH_TEXT_FIELDS:
-            m = Mock(spec=RichTextEditor)
-            m.toHtml = Mock(return_value="<p></p>")
+            m = Mock(spec=WebRichTextEditor)
+            m.get_html_sync = Mock(return_value="<p></p>")
             m.toPlainText = Mock(return_value="")
             vars_[f] = m
         vars_["project_title"].text = Mock(return_value="MyProject")
@@ -55,7 +55,7 @@ class TestA250Generation:
                 if k in vars_:
                     widget = vars_[k]
                     if k in RICH_TEXT_FIELDS:
-                        widget.toHtml = Mock(return_value=v)
+                        widget.get_html_sync = Mock(return_value=v)
                     elif hasattr(widget, 'toPlainText'):
                         widget.toPlainText = Mock(return_value=v)
                     elif hasattr(widget, 'currentText'):
@@ -226,8 +226,8 @@ class TestA250RichTextFields:
             m.toPlainText = Mock(return_value="")
             vars_[f] = m
         for f in RICH_TEXT_FIELDS:
-            m = Mock(spec=RichTextEditor)
-            m.toHtml = Mock(return_value="<p></p>")
+            m = Mock(spec=WebRichTextEditor)
+            m.get_html_sync = Mock(return_value="<p></p>")
             m.toPlainText = Mock(return_value="")
             vars_[f] = m
         vars_["project_title"].text = Mock(return_value="MyProject")
@@ -236,7 +236,7 @@ class TestA250RichTextFields:
                 if k in vars_:
                     widget = vars_[k]
                     if k in RICH_TEXT_FIELDS:
-                        widget.toHtml = Mock(return_value=v)
+                        widget.get_html_sync = Mock(return_value=v)
                     elif hasattr(widget, 'toPlainText'):
                         widget.toPlainText = Mock(return_value=v)
                     elif hasattr(widget, 'currentText'):

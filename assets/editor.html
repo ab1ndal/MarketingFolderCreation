@@ -4,8 +4,43 @@
   <meta charset="UTF-8">
   <link rel="stylesheet" href="quill.snow.css">
   <style>
-    html, body { margin: 0; padding: 0; height: 100%; }
-    #editor { height: calc(100% - 42px); font-size: 13px; }
+    html, body { margin: 0; padding: 0; height: 100%; background: #1e1e1e; color: #f0f0f0; }
+
+    /* Dark toolbar */
+    #toolbar {
+      background: #2d2d2d;
+      border-bottom: 1px solid #444;
+    }
+    .ql-toolbar.ql-snow {
+      background: #2d2d2d;
+      border: none;
+      border-bottom: 1px solid #444;
+    }
+    /* Toolbar button icons: make SVG paths/strokes white */
+    .ql-toolbar.ql-snow .ql-stroke { stroke: #d4d4d4; }
+    .ql-toolbar.ql-snow .ql-fill  { fill:   #d4d4d4; }
+    .ql-toolbar.ql-snow .ql-picker-label { color: #d4d4d4; }
+    .ql-toolbar.ql-snow button:hover .ql-stroke,
+    .ql-toolbar.ql-snow button.ql-active .ql-stroke { stroke: #ffffff; }
+    .ql-toolbar.ql-snow button:hover .ql-fill,
+    .ql-toolbar.ql-snow button.ql-active .ql-fill   { fill:   #ffffff; }
+
+    /* Dark editor area */
+    .ql-container.ql-snow {
+      border: none;
+      background: #1e1e1e;
+    }
+    .ql-editor {
+      height: 100%;
+      color: #f0f0f0;
+      font-family: 'Calibri Light', Calibri, sans-serif;
+      font-size: 10pt;
+      background: #1e1e1e;
+    }
+    /* Placeholder text color */
+    .ql-editor.ql-blank::before { color: #777; font-style: normal; }
+
+    #editor { height: calc(100% - 42px); font-family: 'Calibri Light', Calibri, sans-serif; font-size: 10pt; }
   </style>
 </head>
 <body>
