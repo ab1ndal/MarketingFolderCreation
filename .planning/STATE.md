@@ -82,8 +82,9 @@ progress:
 | 260331-v5u | Improve the A250 input form with grouped sections for easier filling | 2026-04-01 | fe0b366 | [260331-v5u-improve-the-a250-input-form-with-grouped](.planning/quick/260331-v5u-improve-the-a250-input-form-with-grouped/) |
 | 260401-g9c | Fix copy_folder exit-code-0 false-positive 'already in sync' message | 2026-04-01 | e0e7d96 | [260401-g9c-fix-source-destination-sync-check-giving](.planning/quick/260401-g9c-fix-source-destination-sync-check-giving/) |
 | 260401-ghb | Fix "Failed to load python DLL" error — rename exe ClickFolder v2 -> ClickFolder_v2 | 2026-04-01 | c70c44d | [260401-ghb-fix-failed-to-load-python-dll-error-in-p](.planning/quick/260401-ghb-fix-failed-to-load-python-dll-error-in-p/) |
+| 260402-itx | A250 form: dropdowns, rich-text fields, composite requested_by/client_signed/invoice_to | 2026-04-02 | e929ea5 | [260402-itx-implement-a250-tasks-md-changes-and-upda](.planning/quick/260402-itx-implement-a250-tasks-md-changes-and-upda/) |
 
 ## Last Session
 
-- **Stopped at:** Completed quick task 260401-ghb — at checkpoint:human-verify for ClickFolder_v2.exe launch test
-- **Timestamp:** 2026-04-01T18:55:00Z
+- **Stopped at:** Completed quick task 260402-itx — A250 composite fields, dropdowns, rich-text inputs
+- **Timestamp:** 2026-04-02T20:37:18Z
