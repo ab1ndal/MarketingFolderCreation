@@ -21,7 +21,7 @@ from config import (
 )
 from utils.validate import validate_paths
 from utils.web_editor import WebRichTextEditor
-from utils.richtext_utils import RichTextEditor, html_to_richtext
+from utils.richtext_utils import html_to_richtext
 from workers import WorkflowWorker
 
 
@@ -313,8 +313,6 @@ class FolderSetupApp(QMainWindow):
                     return w.currentText()
                 elif isinstance(w, WebRichTextEditor):
                     return html_to_richtext(w.get_html_sync())
-                elif isinstance(w, RichTextEditor):
-                    return html_to_richtext(w.toHtml())
                 elif isinstance(w, QTextEdit):
                     return w.toPlainText()
                 else:

@@ -1,8 +1,7 @@
 """Rich-text utilities for the A250 form.
 
 Exports:
-    RichTextEditor  - QWidget subclass with formatting toolbar above a QTextEdit
-    html_to_richtext - Convert QTextEdit HTML output to a docxtpl RichText object
+    html_to_richtext - Convert QTextEdit/Quill HTML output to a docxtpl RichText object
 """
 
 from __future__ import annotations
@@ -13,11 +12,6 @@ from html.parser import HTMLParser
 from typing import List, Tuple
 
 from docxtpl import RichText
-
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QToolBar, QTextEdit, QPushButton,
-)
-from PyQt6.QtGui import QTextCharFormat, QTextCursor
 
 
 # --------------------------------------------------------------------------- #
@@ -180,151 +174,3 @@ def html_to_richtext(html: str) -> RichText:
     parser = _HtmlToRichTextParser()
     parser.feed(html)
     return parser.build()
-
-
-# --------------------------------------------------------------------------- #
-# RichTextEditor widget
-# --------------------------------------------------------------------------- #
-
-class RichTextEditor(QWidget):
-    """A compact rich-text editor with a formatting toolbar.
-
-    Provides a QToolBar (Bold, Italic, Underline, Strikethrough, Bullet List,
-    Clear Formatting) stacked above a QTextEdit.
-
-    Public interface (mirrors QTextEdit for drop-in use in a250_vars dict):
-        toHtml()             -> str
-        toPlainText()        -> str
-        setPlaceholderText() -> None
-        setFixedHeight(h)    -> None  (overridden to split between toolbar+editor)
-    """
-
-    def __init__(self, parent=None, height: int = 80):
-        super().__init__(parent)
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-
-        # Toolbar
-        self._toolbar = QHBoxLayout()
-        self._toolbar.setContentsMargins(2, 2, 2, 2)
-        self._toolbar.setSpacing(2)
-
-        # Formatting buttons (checkable)
-        self._btn_bold = self._make_fmt_btn("B")
-        self._btn_italic = self._make_fmt_btn("I")
-        self._btn_underline = self._make_fmt_btn("U")
-        self._btn_strike = self._make_fmt_btn("S")
-
-        # Non-checkable action buttons
-        self._btn_bullet = QPushButton("• List")
-        self._btn_bullet.setFixedHeight(22)
-        self._btn_clear = QPushButton("✕ Clear")
-        self._btn_clear.setFixedHeight(22)
-
-        for btn in (self._btn_bold, self._btn_italic, self._btn_underline,
-                    self._btn_strike, self._btn_bullet, self._btn_clear):
-            self._toolbar.addWidget(btn)
-        self._toolbar.addStretch()
-
-        toolbar_widget = QWidget()
-        toolbar_widget.setLayout(self._toolbar)
-        toolbar_widget.setFixedHeight(28)
-
-        # Text editor
-        self._editor = QTextEdit()
-        editor_height = max(40, height - 28)
-        self._editor.setFixedHeight(editor_height)
-
-        layout.addWidget(toolbar_widget)
-        layout.addWidget(self._editor)
-
-        # Connect toolbar actions
-        self._btn_bold.clicked.connect(self._toggle_bold)
-        self._btn_italic.clicked.connect(self._toggle_italic)
-        self._btn_underline.clicked.connect(self._toggle_underline)
-        self._btn_strike.clicked.connect(self._toggle_strike)
-        self._btn_bullet.clicked.connect(self._insert_bullet)
-        self._btn_clear.clicked.connect(self._clear_format)
-
-        # Keep button checked states in sync with cursor position
-        self._editor.currentCharFormatChanged.connect(self._on_char_format_changed)
-
-    # ------------------------------------------------------------------
-    # Button factory
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _make_fmt_btn(label: str) -> QPushButton:
-        btn = QPushButton(label)
-        btn.setCheckable(True)
-        btn.setFixedHeight(22)
-        btn.setFixedWidth(28)
-        return btn
-
-    # ------------------------------------------------------------------
-    # Format toggle slots
-    # ------------------------------------------------------------------
-
-    def _toggle_bold(self):
-        fmt = QTextCharFormat()
-        weight = 400 if self._editor.fontWeight() > 400 else 700
-        from PyQt6.QtGui import QFont
-        fmt.setFontWeight(weight)
-        self._editor.textCursor().mergeCharFormat(fmt)
-
-    def _toggle_italic(self):
-        fmt = QTextCharFormat()
-        fmt.setFontItalic(not self._editor.fontItalic())
-        self._editor.textCursor().mergeCharFormat(fmt)
-
-    def _toggle_underline(self):
-        fmt = QTextCharFormat()
-        fmt.setFontUnderline(not self._editor.fontUnderline())
-        self._editor.textCursor().mergeCharFormat(fmt)
-
-    def _toggle_strike(self):
-        fmt = QTextCharFormat()
-        current = self._editor.currentCharFormat()
-        fmt.setFontStrikeOut(not current.fontStrikeOut())
-        self._editor.textCursor().mergeCharFormat(fmt)
-
-    def _insert_bullet(self):
-        """Prefix the current block with a bullet character."""
-        cursor = self._editor.textCursor()
-        cursor.movePosition(QTextCursor.MoveOperation.StartOfBlock)
-        cursor.insertText("\u2022 ")
-
-    def _clear_format(self):
-        """Remove all character-level formatting from the selection."""
-        self._editor.textCursor().mergeCharFormat(QTextCharFormat())
-
-    # ------------------------------------------------------------------
-    # Sync button states with cursor format
-    # ------------------------------------------------------------------
-
-    def _on_char_format_changed(self, fmt: QTextCharFormat):
-        from PyQt6.QtGui import QFont
-        self._btn_bold.setChecked(fmt.fontWeight() > 400)
-        self._btn_italic.setChecked(fmt.fontItalic())
-        self._btn_underline.setChecked(fmt.fontUnderline())
-        self._btn_strike.setChecked(fmt.fontStrikeOut())
-
-    # ------------------------------------------------------------------
-    # Public interface (mirrors QTextEdit)
-    # ------------------------------------------------------------------
-
-    def toHtml(self) -> str:
-        return self._editor.toHtml()
-
-    def toPlainText(self) -> str:
-        return self._editor.toPlainText()
-
-    def setPlaceholderText(self, text: str):
-        self._editor.setPlaceholderText(text)
-
-    def setFixedHeight(self, h: int):
-        super().setFixedHeight(h)
-        editor_height = max(40, h - 28)
-        self._editor.setFixedHeight(editor_height)
