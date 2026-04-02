@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch, MagicMock
 from PyQt6.QtWidgets import QApplication, QLineEdit, QComboBox, QTextEdit
 from docxtpl import DocxTemplate
 from docx import Document
+from utils.richtext_utils import RichTextEditor
 
 
 # Ensure QApplication exists for widget tests
@@ -44,7 +45,7 @@ class TestA250Generation:
             m.toPlainText = Mock(return_value="")
             vars_[f] = m
         for f in RICH_TEXT_FIELDS:
-            m = Mock()
+            m = Mock(spec=RichTextEditor)
             m.toHtml = Mock(return_value="<p></p>")
             m.toPlainText = Mock(return_value="")
             vars_[f] = m
@@ -225,7 +226,7 @@ class TestA250RichTextFields:
             m.toPlainText = Mock(return_value="")
             vars_[f] = m
         for f in RICH_TEXT_FIELDS:
-            m = Mock()
+            m = Mock(spec=RichTextEditor)
             m.toHtml = Mock(return_value="<p></p>")
             m.toPlainText = Mock(return_value="")
             vars_[f] = m

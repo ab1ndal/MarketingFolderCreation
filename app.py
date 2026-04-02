@@ -20,6 +20,7 @@ from config import (
     PROJECT_MANAGER_OPTIONS, FEE_TYPE_OPTIONS
 )
 from utils.validate import validate_paths
+from utils.richtext_utils import RichTextEditor, html_to_richtext
 from workers import WorkflowWorker
 
 
@@ -245,7 +246,7 @@ class FolderSetupApp(QMainWindow):
             ]),
             ("Scope & Fee", [
                 ("request_date",        "Request Date"),
-                ("work_type",           "Work Type"),
+                ("received_date",       "Received Date"),
                 ("project_description", "Project Description"),
                 ("detailed_scope",      "Detailed Scope"),
                 ("fee_type",            "Fee Type"),
@@ -257,6 +258,7 @@ class FolderSetupApp(QMainWindow):
             ]),
             ("Output", [
                 ("save_location", "Save Location"),
+                ("file_name", "File Name"),
                 ("a250_creator",  "Created By"),
             ]),
         ]
@@ -266,7 +268,8 @@ class FolderSetupApp(QMainWindow):
             "project_manager": PROJECT_MANAGER_OPTIONS,
             "fee_type": FEE_TYPE_OPTIONS,
         }
-        MULTILINE_FIELDS = {"project_description", "detailed_scope", "client_address", "invoice_to"}
+        MULTILINE_FIELDS = {"project_address", "client_address", "invoice_to"}
+        RICH_TEXT_FIELDS = {"project_description", "detailed_scope"}
 
         for section_title, field_pairs in groups:
             group_box = QGroupBox(section_title)
@@ -275,6 +278,9 @@ class FolderSetupApp(QMainWindow):
                 if key in COMBO_FIELDS:
                     widget = QComboBox()
                     widget.addItems(COMBO_FIELDS[key])
+                    form.addRow(label, widget)
+                elif key in RICH_TEXT_FIELDS:
+                    widget = RichTextEditor(height=120)
                     form.addRow(label, widget)
                 elif key in MULTILINE_FIELDS:
                     widget = QTextEdit()
@@ -304,23 +310,26 @@ class FolderSetupApp(QMainWindow):
             def _get_val(w):
                 if isinstance(w, QComboBox):
                     return w.currentText()
+                elif isinstance(w, RichTextEditor):
+                    return html_to_richtext(w.toHtml())
                 elif isinstance(w, QTextEdit):
                     return w.toPlainText()
                 else:
                     return w.text()
 
             data = {k: _get_val(v) for k, v in a250_vars.items()}
-            data["today"] = datetime.now().strftime("%m/%d/%Y")
+            data["today"] = datetime.now().strftime("%B %#d, %Y")
             data["current_date"] = data["today"]
 
             # --- Composite: requested_by ---
             name     = data.get("client_name", "").strip()
-            license_ = data.get("client_license", "").strip()
+            license  = data.get("client_license", "").strip()
             title    = data.get("client_title", "").strip()
             client   = data.get("client", "").strip()
 
-            title_sep = "\n\n" if len(name) + len(license_) + len(title) > 60 else "\n"
-            data["requested_by"] = f"{name}\n{license_}{title_sep}{title}\n{client}"
+            licence_sep = ", " if license else ""
+            title_sep = "\n" if len(name) + len(license) + len(title) > 60 else ", "
+            data["requested_by"] = f"{name}{licence_sep}{license}{title_sep}{title}\n{client}"
 
             # --- Composite: client_signed ---
             title_sep2 = "\n" if len(name) + len(title) > 40 else ", "
@@ -329,10 +338,13 @@ class FolderSetupApp(QMainWindow):
             # --- Composite: invoice_to ---
             invoice_custom = data.get("invoice_to", "").strip()
             if not invoice_custom:
-                data["invoice_to"] = data["requested_by"]
+                data["invoice_to"] = 'Same as "Requested By"\n'+data["client"]
             # else leave data["invoice_to"] as the custom text the user entered
             template_path = _resource_path("templates/A250.docx")
-            output_name = f"A250_{data.get('project_title', 'output')}.docx"
+            if data.get("file_name"):
+                output_name = f"{data.get('file_name')}.docx"
+            else:
+                output_name = f"A250_{data.get('project_title', 'output')}.docx"
             save_loc = data.get("save_location", "").strip()
             output_path = (Path(save_loc) / output_name) if save_loc else (Path.cwd() / output_name)
             doc = DocxTemplate(template_path)
