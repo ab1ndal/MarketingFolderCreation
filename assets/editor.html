@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="quill.snow.css">
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; }
+    #editor { height: calc(100% - 42px); font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <span class="ql-formats">
+      <button class="ql-bold"></button>
+      <button class="ql-italic"></button>
+      <button class="ql-underline"></button>
+      <button class="ql-strike"></button>
+    </span>
+    <span class="ql-formats">
+      <button class="ql-list" value="bullet"></button>
+      <button class="ql-list" value="ordered"></button>
+    </span>
+    <span class="ql-formats">
+      <button class="ql-clean"></button>
+    </span>
+  </div>
+  <div id="editor"></div>
+  <script src="quill.js"></script>
+  <script>
+    var quill = new Quill('#editor', {
+      theme: 'snow',
+      modules: { toolbar: '#toolbar' }
+    });
+    function getContent() { return quill.root.innerHTML; }
+    function setContent(html) { quill.root.innerHTML = html; quill.update(); }
+  </script>
+</body>
+</html>

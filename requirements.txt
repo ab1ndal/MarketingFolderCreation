@@ -3,3 +3,4 @@ pyinstaller
 pyperclip
 docxtpl
 PyQt6
+PyQt6-WebEngine
