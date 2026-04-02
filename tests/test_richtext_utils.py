@@ -23,22 +23,17 @@ def qapp():
 class TestHtmlToRichtext:
     """Tests for the html_to_richtext(html) -> docxtpl.RichText converter."""
 
-    def _get_segments(self, rt):
-        """Return the list of (text, kwargs) from a RichText object."""
-        # docxtpl.RichText stores runs in ._r attribute as lxml element;
-        # we inspect the internal list instead.
-        return rt._r if hasattr(rt, "_r") else []
-
-    def _collect_text(self, rt):
-        """Collect all text from RichText segments as a concatenated string."""
-        # RichText._r is a list of lxml elements; extract text from each
-        import lxml.etree as etree
-        parts = []
-        for el in rt._r:
-            t = el.find("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t")
-            if t is not None and t.text:
-                parts.append(t.text)
+    def _collect_text(self, rt) -> str:
+        """Collect all text from RichText XML output."""
+        import re
+        xml = rt.xml or ""
+        # Extract text content from w:t elements
+        parts = re.findall(r'<w:t[^>]*>([^<]*)</w:t>', xml)
         return "".join(parts)
+
+    def _get_xml(self, rt) -> str:
+        """Return the full XML string for the RichText."""
+        return rt.xml or ""
 
     def test_plain_text(self):
         """Plain text 'Hello' -> RichText with one segment, no formatting."""
@@ -51,98 +46,91 @@ class TestHtmlToRichtext:
     def test_bold(self):
         """<b>Hello</b> -> RichText segment with bold=True."""
         from utils.richtext_utils import html_to_richtext
-        import lxml.etree as etree
         rt = html_to_richtext("<b>Hello</b>")
-        # Check that the XML contains a bold run property (w:b)
-        xml = etree.tostring(rt._r[0], encoding="unicode") if rt._r else ""
         assert "Hello" in self._collect_text(rt)
-        # The XML string for a bold run should contain w:b
-        full_xml = etree.tostring(rt._r[0]).decode() if rt._r else ""
-        assert 'w:b' in full_xml or 'bold' in full_xml.lower(), f"Expected bold in XML: {full_xml}"
+        xml = self._get_xml(rt)
+        assert 'w:b' in xml, f"Expected w:b in XML: {xml}"
 
     def test_italic(self):
         """<i>Hello</i> -> RichText segment with italic=True."""
         from utils.richtext_utils import html_to_richtext
-        import lxml.etree as etree
         rt = html_to_richtext("<i>Hello</i>")
         assert "Hello" in self._collect_text(rt)
-        full_xml = etree.tostring(rt._r[0]).decode() if rt._r else ""
-        assert 'w:i' in full_xml or 'italic' in full_xml.lower(), f"Expected italic in XML: {full_xml}"
+        xml = self._get_xml(rt)
+        assert 'w:i' in xml, f"Expected w:i in XML: {xml}"
 
     def test_underline(self):
         """<u>Hello</u> -> RichText segment with underline=True."""
         from utils.richtext_utils import html_to_richtext
-        import lxml.etree as etree
         rt = html_to_richtext("<u>Hello</u>")
         assert "Hello" in self._collect_text(rt)
-        full_xml = etree.tostring(rt._r[0]).decode() if rt._r else ""
-        assert 'w:u' in full_xml or 'underline' in full_xml.lower(), f"Expected underline in XML: {full_xml}"
+        xml = self._get_xml(rt)
+        assert 'w:u' in xml, f"Expected w:u in XML: {xml}"
 
     def test_strikethrough_s_tag(self):
         """<s>Hello</s> -> RichText segment with strike=True."""
         from utils.richtext_utils import html_to_richtext
-        import lxml.etree as etree
         rt = html_to_richtext("<s>Hello</s>")
         assert "Hello" in self._collect_text(rt)
-        full_xml = etree.tostring(rt._r[0]).decode() if rt._r else ""
-        assert 'w:strike' in full_xml or 'strike' in full_xml.lower(), f"Expected strike in XML: {full_xml}"
+        xml = self._get_xml(rt)
+        assert 'w:strike' in xml, f"Expected w:strike in XML: {xml}"
 
     def test_strikethrough_del_tag(self):
         """<del>Hello</del> -> RichText segment with strike=True."""
         from utils.richtext_utils import html_to_richtext
-        import lxml.etree as etree
         rt = html_to_richtext("<del>Hello</del>")
         assert "Hello" in self._collect_text(rt)
-        full_xml = etree.tostring(rt._r[0]).decode() if rt._r else ""
-        assert 'w:strike' in full_xml or 'strike' in full_xml.lower(), f"Expected strike in XML: {full_xml}"
+        xml = self._get_xml(rt)
+        assert 'w:strike' in xml, f"Expected w:strike in XML: {xml}"
 
     def test_bold_italic_combined(self):
         """<b><i>Hello</i></b> -> segment with bold=True and italic=True."""
         from utils.richtext_utils import html_to_richtext
-        import lxml.etree as etree
         rt = html_to_richtext("<b><i>Hello</i></b>")
         assert "Hello" in self._collect_text(rt)
-        full_xml = etree.tostring(rt._r[0]).decode() if rt._r else ""
-        assert 'w:b' in full_xml and 'w:i' in full_xml, f"Expected bold+italic in XML: {full_xml}"
+        xml = self._get_xml(rt)
+        assert 'w:b' in xml and 'w:i' in xml, f"Expected bold+italic in XML: {xml}"
 
     def test_bullet_list_item(self):
-        """<li>Item</li> -> segment text contains bullet char and newline."""
+        """<li>Item</li> -> segment text contains bullet char."""
         from utils.richtext_utils import html_to_richtext
         rt = html_to_richtext("<li>Item</li>")
-        text = self._collect_text(rt)
-        assert "\u2022" in text or "•" in text, f"Expected bullet in text: {repr(text)}"
-        assert "Item" in text
+        xml = self._get_xml(rt)
+        assert "\u2022" in xml or "&#8226;" in xml or "•" in xml, \
+            f"Expected bullet in XML: {repr(xml)}"
+        assert "Item" in xml
 
     def test_multi_paragraph(self):
         """Two <p> tags -> segments separated by newline."""
         from utils.richtext_utils import html_to_richtext
         rt = html_to_richtext("<p>First</p><p>Second</p>")
-        text = self._collect_text(rt)
-        assert "First" in text
-        assert "Second" in text
-        assert "\n" in text
+        xml = self._get_xml(rt)
+        assert "First" in xml
+        assert "Second" in xml
+        # Newline is in separate run or encoded
+        assert "\n" in xml or "&#10;" in xml
 
     def test_empty_string(self):
-        """Empty string '' -> RichText with no segments."""
+        """Empty string '' -> RichText with no content (empty xml)."""
         from utils.richtext_utils import html_to_richtext
         rt = html_to_richtext("")
-        assert len(rt._r) == 0
+        assert rt.xml == ""
 
     def test_whitespace_only(self):
-        """Whitespace-only input -> RichText with no segments."""
+        """Whitespace-only input -> RichText with empty or blank xml."""
         from utils.richtext_utils import html_to_richtext
         rt = html_to_richtext("   \n\t  ")
         text = self._collect_text(rt)
         assert text.strip() == ""
 
     def test_html_entities_decoded(self):
-        """HTML entities like &amp;nbsp; are decoded to plain chars."""
+        """HTML entities like &nbsp; are decoded to plain chars."""
         from utils.richtext_utils import html_to_richtext
         rt = html_to_richtext("Hello&nbsp;World")
-        text = self._collect_text(rt)
-        assert "Hello" in text
-        assert "World" in text
-        assert "&nbsp;" not in text
+        xml = self._get_xml(rt)
+        assert "Hello" in xml
+        assert "World" in xml
+        assert "&nbsp;" not in xml
 
     def test_qtextedit_html_wrapper(self):
         """QTextEdit-style wrapper HTML is handled (style= attrs ignored, content extracted)."""
@@ -155,27 +143,25 @@ class TestHtmlToRichtext:
             '</body></html>'
         )
         rt = html_to_richtext(html)
-        text = self._collect_text(rt)
-        assert "Hello" in text
-        assert "World" in text
+        xml = self._get_xml(rt)
+        assert "Hello" in xml
+        assert "World" in xml
 
     def test_strong_tag_treated_as_bold(self):
         """<strong> tag -> same as bold."""
         from utils.richtext_utils import html_to_richtext
-        import lxml.etree as etree
         rt = html_to_richtext("<strong>Hello</strong>")
         assert "Hello" in self._collect_text(rt)
-        full_xml = etree.tostring(rt._r[0]).decode() if rt._r else ""
-        assert 'w:b' in full_xml, f"Expected bold in XML: {full_xml}"
+        xml = self._get_xml(rt)
+        assert 'w:b' in xml, f"Expected w:b in XML: {xml}"
 
     def test_em_tag_treated_as_italic(self):
         """<em> tag -> same as italic."""
         from utils.richtext_utils import html_to_richtext
-        import lxml.etree as etree
         rt = html_to_richtext("<em>Hello</em>")
         assert "Hello" in self._collect_text(rt)
-        full_xml = etree.tostring(rt._r[0]).decode() if rt._r else ""
-        assert 'w:i' in full_xml, f"Expected italic in XML: {full_xml}"
+        xml = self._get_xml(rt)
+        assert 'w:i' in xml, f"Expected w:i in XML: {xml}"
 
 
 # --------------------------------------------------------------------------- #
