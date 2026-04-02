@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QProgressBar, QTextEdit,
     QFileDialog, QMessageBox, QDialog, QScrollArea, QFormLayout,
-    QDialogButtonBox, QGroupBox,
+    QDialogButtonBox, QGroupBox, QComboBox
 )
 from PyQt6.QtCore import Qt, pyqtSlot
 from PyQt6.QtGui import QTextCursor, QFont
@@ -16,7 +16,8 @@ from docxtpl import DocxTemplate
 
 from config import (
     DEFAULT_MARKETING_TEMPLATE, DEFAULT_WORK_TEMPLATE,
-    DEFAULT_BD_TARGET, DEFAULT_WORK_TARGET, FOLDER_TO_DELETE,
+    DEFAULT_BD_TARGET, DEFAULT_WORK_TARGET, PRINCIPAL_OPTIONS, 
+    PROJECT_MANAGER_OPTIONS, FEE_TYPE_OPTIONS
 )
 from utils.validate import validate_paths
 from workers import WorkflowWorker
@@ -224,31 +225,35 @@ class FolderSetupApp(QMainWindow):
             ("Project Info", [
                 ("project_title",       "Project Title"),
                 ("project_address",     "Project Address"),
+                ("client",              "Company Name"),
                 ("nya_project_code",    "NYA Project Code"),
                 ("client_project_code", "Client Project Code"),
             ]),
             ("Client Contact", [
-                ("client",         "Client Name"),
-                ("client_address", "Client Address"),
-                ("client_phone",   "Phone"),
-                ("client_mobile",  "Mobile"),
-                ("client_email",   "Email"),
-                ("client_office",  "Office"),
+                ("client_name",    "Client Name"),
+                ("client_title",   "Title"),
+                ("client_license", "Licenses"),
+                ("client_phone",   "Phone Number"),
+                ("client_mobile",  "Mobile Number"),
+                ("client_email",   "Email Address")
             ]),
             ("Billing", [
-                ("client_invoice", "Invoice Address"),
-                ("invoice_to",     "Invoice To"),
-                ("Fname_R",        "Recipient First Name"),
-                ("Lname_R",        "Recipient Last Name"),
-                ("title_R",        "Recipient Title"),
-                ("licenses",       "Licenses"),
+                ("invoice_to",           "Invoice To"),
+                ("client_office_no",     "Office Number"),
+                ("client_invoice_email", "Invoice Email"),
+                ("client_address",       "Client Address")
             ]),
             ("Scope & Fee", [
                 ("request_date",        "Request Date"),
                 ("work_type",           "Work Type"),
                 ("project_description", "Project Description"),
                 ("detailed_scope",      "Detailed Scope"),
+                ("fee_type",            "Fee Type"),
                 ("fee",                 "Fee"),
+            ]),
+            ("Additional Info", [
+                ("principal_name", "Principal Name"),
+                ("project_manager", "Project Manager")
             ]),
             ("Output", [
                 ("save_location", "Save Location"),
@@ -256,13 +261,29 @@ class FolderSetupApp(QMainWindow):
             ]),
         ]
 
+        COMBO_FIELDS = {
+            "principal_name": PRINCIPAL_OPTIONS,
+            "project_manager": PROJECT_MANAGER_OPTIONS,
+            "fee_type": FEE_TYPE_OPTIONS,
+        }
+        MULTILINE_FIELDS = {"project_description", "detailed_scope", "client_address", "invoice_to"}
+
         for section_title, field_pairs in groups:
             group_box = QGroupBox(section_title)
             form = QFormLayout(group_box)
             for key, label in field_pairs:
-                line_edit = QLineEdit()
-                form.addRow(label, line_edit)
-                a250_vars[key] = line_edit
+                if key in COMBO_FIELDS:
+                    widget = QComboBox()
+                    widget.addItems(COMBO_FIELDS[key])
+                    form.addRow(label, widget)
+                elif key in MULTILINE_FIELDS:
+                    widget = QTextEdit()
+                    widget.setFixedHeight(80)
+                    form.addRow(label, widget)
+                else:
+                    widget = QLineEdit()
+                    form.addRow(label, widget)
+                a250_vars[key] = widget
             container_layout.addWidget(group_box)
 
         container_layout.addStretch()
@@ -280,8 +301,36 @@ class FolderSetupApp(QMainWindow):
 
     def _generate_a250(self, a250_vars: dict):
         try:
-            data = {k: v.text() for k, v in a250_vars.items()}
-            data["current_date"] = datetime.now().strftime("%m/%d/%Y")
+            def _get_val(w):
+                if isinstance(w, QComboBox):
+                    return w.currentText()
+                elif isinstance(w, QTextEdit):
+                    return w.toPlainText()
+                else:
+                    return w.text()
+
+            data = {k: _get_val(v) for k, v in a250_vars.items()}
+            data["today"] = datetime.now().strftime("%m/%d/%Y")
+            data["current_date"] = data["today"]
+
+            # --- Composite: requested_by ---
+            name     = data.get("client_name", "").strip()
+            license_ = data.get("client_license", "").strip()
+            title    = data.get("client_title", "").strip()
+            client   = data.get("client", "").strip()
+
+            title_sep = "\n\n" if len(name) + len(license_) + len(title) > 60 else "\n"
+            data["requested_by"] = f"{name}\n{license_}{title_sep}{title}\n{client}"
+
+            # --- Composite: client_signed ---
+            title_sep2 = "\n" if len(name) + len(title) > 40 else ", "
+            data["client_signed"] = f"{name}{title_sep2}{title}"
+
+            # --- Composite: invoice_to ---
+            invoice_custom = data.get("invoice_to", "").strip()
+            if not invoice_custom:
+                data["invoice_to"] = data["requested_by"]
+            # else leave data["invoice_to"] as the custom text the user entered
             template_path = _resource_path("templates/A250.docx")
             output_name = f"A250_{data.get('project_title', 'output')}.docx"
             save_loc = data.get("save_location", "").strip()
