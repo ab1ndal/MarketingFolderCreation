@@ -84,8 +84,9 @@ progress:
 | 260401-ghb | Fix "Failed to load python DLL" error — rename exe ClickFolder v2 -> ClickFolder_v2 | 2026-04-01 | c70c44d | [260401-ghb-fix-failed-to-load-python-dll-error-in-p](.planning/quick/260401-ghb-fix-failed-to-load-python-dll-error-in-p/) |
 | 260402-itx | A250 form: dropdowns, rich-text fields, composite requested_by/client_signed/invoice_to | 2026-04-02 | e929ea5 | [260402-itx-implement-a250-tasks-md-changes-and-upda](.planning/quick/260402-itx-implement-a250-tasks-md-changes-and-upda/) |
 | 260402-jpl | Fix TemplateSyntaxError "unexpected }" on Generate A250 — single-brace bug in A250.docx | 2026-04-02 | a98efcf | [260402-jpl-fix-unexpected-error-when-generating-a25](.planning/quick/260402-jpl-fix-unexpected-error-when-generating-a25/) |
+| 260402-kmm | Add rich-text editor toolbar (B/I/U/S/Bullet/Clear) to A250 project_description and detailed_scope fields | 2026-04-02 | 6a6624f | [260402-kmm-add-full-rich-text-editor-toolbar-to-a25](.planning/quick/260402-kmm-add-full-rich-text-editor-toolbar-to-a25/) |
 
 ## Last Session
 
-- **Stopped at:** Completed quick task 260402-jpl — fix TemplateSyntaxError in A250.docx (single-brace bug) + regression tests
-- **Timestamp:** 2026-04-02T21:00:00Z
+- **Stopped at:** Completed quick task 260402-kmm — rich-text editor toolbar for A250 project_description/detailed_scope
+- **Timestamp:** 2026-04-02T21:58:00Z
