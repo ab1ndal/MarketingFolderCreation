@@ -3,7 +3,12 @@ a = Analysis(
     ['app.py'],
     pathex=[],
     binaries=[],
-    datas=[('templates/A250.docx', 'templates')],
+    datas=[
+        ('templates/A250.docx', 'templates'),
+        ('assets/editor.html', 'assets'),
+        ('assets/quill.js', 'assets'),
+        ('assets/quill.snow.css', 'assets'),
+    ],
     hiddenimports=[
         'win32com.shell',
         'win32com.shell.shell',

@@ -20,6 +20,7 @@ from config import (
     PROJECT_MANAGER_OPTIONS, FEE_TYPE_OPTIONS
 )
 from utils.validate import validate_paths
+from utils.web_editor import WebRichTextEditor
 from utils.richtext_utils import RichTextEditor, html_to_richtext
 from workers import WorkflowWorker
 
@@ -280,7 +281,7 @@ class FolderSetupApp(QMainWindow):
                     widget.addItems(COMBO_FIELDS[key])
                     form.addRow(label, widget)
                 elif key in RICH_TEXT_FIELDS:
-                    widget = RichTextEditor(height=120)
+                    widget = WebRichTextEditor(height=150)
                     form.addRow(label, widget)
                 elif key in MULTILINE_FIELDS:
                     widget = QTextEdit()
@@ -310,6 +311,8 @@ class FolderSetupApp(QMainWindow):
             def _get_val(w):
                 if isinstance(w, QComboBox):
                     return w.currentText()
+                elif isinstance(w, WebRichTextEditor):
+                    return html_to_richtext(w.get_html_sync())
                 elif isinstance(w, RichTextEditor):
                     return html_to_richtext(w.toHtml())
                 elif isinstance(w, QTextEdit):

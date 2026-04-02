@@ -208,3 +208,36 @@ class TestRichTextEditor:
         from utils.richtext_utils import RichTextEditor, html_to_richtext
         assert callable(html_to_richtext)
         assert RichTextEditor is not None
+
+
+# --------------------------------------------------------------------------- #
+# Body-stripping tests for Quill compatibility
+# --------------------------------------------------------------------------- #
+
+class TestHtmlToRichtextBodyStripping:
+    """Verify html/head/body wrapper stripping added for Quill compatibility."""
+
+    def _get_xml(self, rt) -> str:
+        return rt.xml or ""
+
+    def test_strips_html_head_body_wrapper(self):
+        """Full html/head/body wrapper from Quill is stripped; content extracted."""
+        from utils.richtext_utils import html_to_richtext
+        html = (
+            '<html><head></head><body>'
+            '<p><strong>Hello</strong> World</p>'
+            '</body></html>'
+        )
+        rt = html_to_richtext(html)
+        xml = self._get_xml(rt)
+        assert "Hello" in xml
+        assert "World" in xml
+        assert 'w:b' in xml
+
+    def test_plain_body_content_unchanged(self):
+        """Content without wrapper is still parsed correctly after stripping change."""
+        from utils.richtext_utils import html_to_richtext
+        rt = html_to_richtext("<p><em>Test</em></p>")
+        xml = self._get_xml(rt)
+        assert "Test" in xml
+        assert 'w:i' in xml

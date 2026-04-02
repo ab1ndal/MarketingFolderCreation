@@ -8,6 +8,7 @@ Exports:
 from __future__ import annotations
 
 import html as _html_module
+import re as _re
 from html.parser import HTMLParser
 from typing import List, Tuple
 
@@ -156,6 +157,12 @@ class _HtmlToRichTextParser(HTMLParser):
         return rt
 
 
+def _extract_body(html: str) -> str:
+    """Return content between <body> tags, or original if no body tag."""
+    m = _re.search(r'(?is)<body[^>]*>(.*?)</body>', html)
+    return m.group(1) if m else html
+
+
 def html_to_richtext(html: str) -> RichText:
     """Convert QTextEdit HTML output to a docxtpl RichText object.
 
@@ -166,6 +173,9 @@ def html_to_richtext(html: str) -> RichText:
     """
     if not html or not html.strip():
         return RichText()
+
+    # Strip outer html/head/body wrapper tags (QTextEdit and Quill both add these)
+    html = _re.sub(r'(?is)<html[^>]*>.*?</html>', lambda m: _extract_body(m.group(0)), html)
 
     parser = _HtmlToRichTextParser()
     parser.feed(html)
