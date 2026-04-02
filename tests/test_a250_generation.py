@@ -3,6 +3,8 @@ import sys
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 from PyQt6.QtWidgets import QApplication, QLineEdit, QComboBox, QTextEdit
+from docxtpl import DocxTemplate
+from docx import Document
 
 
 # Ensure QApplication exists for widget tests
@@ -190,3 +192,97 @@ class TestA250Generation:
                 window._generate_a250(a250_vars)
         render_data = mock_doc.render.call_args[0][0]
         assert render_data["invoice_to"] == "Custom Billing Address\nSuite 100"
+
+
+# ---------------------------------------------------------------------------
+# Regression tests for A250 template validity (260402-jpl)
+# These tests use the real template file (not mocked) to catch Jinja2 syntax
+# errors such as the single-brace bug fixed in this quick task.
+# ---------------------------------------------------------------------------
+
+TEMPLATE_PATH = Path("templates/A250.docx")
+
+EXPECTED_VARS = {
+    "nya_project_code", "project_title", "requested_by", "invoice_to",
+    "fee", "today", "client_signed", "principal_name", "project_manager",
+}
+
+FULL_RENDER_DATA = {
+    "project_title": "Test Project",
+    "project_address": "123 Main St",
+    "client": "ACME Corp",
+    "nya_project_code": "NYA-2026-001",
+    "client_project_code": "CP-001",
+    "client_name": "Jane Doe",
+    "client_title": "PE",
+    "client_license": "CA 12345",
+    "client_phone": "555-1234",
+    "client_mobile": "555-5678",
+    "client_email": "jane@acme.com",
+    "invoice_to": "Jane Doe\nCA 12345\nPE\nACME Corp",
+    "client_office_no": "555-9999",
+    "client_invoice_email": "billing@acme.com",
+    "client_address": "456 Elm St",
+    "request_date": "2026-04-02",
+    "work_type": "Structural Review",
+    "project_description": "Desc",
+    "detailed_scope": "Scope",
+    "fee_type": "Lump Sum",
+    "fee": "5000",
+    "principal_name": "John Smith",
+    "project_manager": "Bob Jones",
+    "save_location": "",
+    "a250_creator": "Tester",
+    "today": "April 2, 2026",
+    "current_date": "April 2, 2026",
+    "requested_by": "Jane Doe\nCA 12345\nPE\nACME Corp",
+    "client_signed": "Jane Doe\nPE",
+    "received_date": "",
+}
+
+
+class TestA250TemplateRegression:
+    """Regression tests ensuring templates/A250.docx remains a valid Jinja2/docxtpl template."""
+
+    def test_template_parses_cleanly(self):
+        """Template must parse without TemplateSyntaxError and expose nya_project_code."""
+        t = DocxTemplate(str(TEMPLATE_PATH))
+        # get_undeclared_template_variables raises TemplateSyntaxError if any tag is malformed
+        vars_ = t.get_undeclared_template_variables()
+        assert "nya_project_code" in vars_, (
+            f"nya_project_code not found in template variables: {sorted(vars_)}"
+        )
+
+    def test_expected_vars_present_in_template(self):
+        """All core variable names used by _generate_a250 must appear in the template."""
+        t = DocxTemplate(str(TEMPLATE_PATH))
+        vars_ = t.get_undeclared_template_variables()
+        missing = EXPECTED_VARS - vars_
+        assert not missing, f"Missing variables in template: {missing}"
+
+    def test_render_produces_file(self, tmp_path):
+        """render() + save() with a full data dict must complete without exception."""
+        t = DocxTemplate(str(TEMPLATE_PATH))
+        t.render(FULL_RENDER_DATA)
+        out = tmp_path / "out.docx"
+        t.save(str(out))
+        assert out.exists(), "Output file was not created"
+        assert out.stat().st_size > 0, "Output file is empty"
+
+    def test_render_contains_nya_code(self, tmp_path):
+        """The rendered document must contain the nya_project_code value somewhere."""
+        t = DocxTemplate(str(TEMPLATE_PATH))
+        t.render(FULL_RENDER_DATA)
+        out = tmp_path / "out.docx"
+        t.save(str(out))
+        doc = Document(str(out))
+        all_text = []
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for para in cell.paragraphs:
+                        all_text.append(para.text)
+        combined = "\n".join(all_text)
+        assert "NYA-2026-001" in combined, (
+            "nya_project_code value 'NYA-2026-001' not found in rendered document tables"
+        )
