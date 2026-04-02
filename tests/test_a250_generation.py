@@ -22,7 +22,8 @@ LINE_EDIT_FIELDS = [
     "request_date", "work_type", "fee", "save_location", "a250_creator",
 ]
 COMBO_FIELDS = ["principal_name", "project_manager", "fee_type"]
-MULTILINE_FIELDS = ["project_description", "detailed_scope", "client_address", "invoice_to"]
+MULTILINE_FIELDS = ["client_address", "invoice_to"]
+RICH_TEXT_FIELDS = ["project_description", "detailed_scope"]
 
 
 class TestA250Generation:
@@ -42,12 +43,19 @@ class TestA250Generation:
             m = Mock(spec=QTextEdit)
             m.toPlainText = Mock(return_value="")
             vars_[f] = m
+        for f in RICH_TEXT_FIELDS:
+            m = Mock()
+            m.toHtml = Mock(return_value="<p></p>")
+            m.toPlainText = Mock(return_value="")
+            vars_[f] = m
         vars_["project_title"].text = Mock(return_value="MyProject")
         if overrides:
             for k, v in overrides.items():
                 if k in vars_:
                     widget = vars_[k]
-                    if hasattr(widget, 'toPlainText'):
+                    if k in RICH_TEXT_FIELDS:
+                        widget.toHtml = Mock(return_value=v)
+                    elif hasattr(widget, 'toPlainText'):
                         widget.toPlainText = Mock(return_value=v)
                     elif hasattr(widget, 'currentText'):
                         widget.currentText = Mock(return_value=v)
@@ -192,6 +200,118 @@ class TestA250Generation:
                 window._generate_a250(a250_vars)
         render_data = mock_doc.render.call_args[0][0]
         assert render_data["invoice_to"] == "Custom Billing Address\nSuite 100"
+
+
+# ---------------------------------------------------------------------------
+# Behavior tests for RichTextEditor integration (260402-kmm)
+# ---------------------------------------------------------------------------
+
+class TestA250RichTextFields:
+    """Tests confirming project_description and detailed_scope produce RichText output."""
+
+    def _make_a250_vars(self, overrides=None):
+        """Shared helper — mirrors TestA250Generation._make_a250_vars."""
+        vars_ = {}
+        for f in LINE_EDIT_FIELDS:
+            m = Mock(spec=QLineEdit)
+            m.text = Mock(return_value="")
+            vars_[f] = m
+        for f in COMBO_FIELDS:
+            m = Mock(spec=QComboBox)
+            m.currentText = Mock(return_value="")
+            vars_[f] = m
+        for f in MULTILINE_FIELDS:
+            m = Mock(spec=QTextEdit)
+            m.toPlainText = Mock(return_value="")
+            vars_[f] = m
+        for f in RICH_TEXT_FIELDS:
+            m = Mock()
+            m.toHtml = Mock(return_value="<p></p>")
+            m.toPlainText = Mock(return_value="")
+            vars_[f] = m
+        vars_["project_title"].text = Mock(return_value="MyProject")
+        if overrides:
+            for k, v in overrides.items():
+                if k in vars_:
+                    widget = vars_[k]
+                    if k in RICH_TEXT_FIELDS:
+                        widget.toHtml = Mock(return_value=v)
+                    elif hasattr(widget, 'toPlainText'):
+                        widget.toPlainText = Mock(return_value=v)
+                    elif hasattr(widget, 'currentText'):
+                        widget.currentText = Mock(return_value=v)
+                    else:
+                        widget.text = Mock(return_value=v)
+        return vars_
+
+    def test_project_description_returns_richtext(self, qapp, tmp_path):
+        """project_description with bold HTML -> data value is a docxtpl.RichText instance."""
+        from app import FolderSetupApp
+        from docxtpl import RichText
+        window = FolderSetupApp()
+        a250_vars = self._make_a250_vars({
+            "project_description": "<b>Scope</b>",
+            "save_location": str(tmp_path),
+        })
+        mock_doc = MagicMock()
+        with patch("app.DocxTemplate", return_value=mock_doc):
+            with patch("subprocess.Popen"):
+                window._generate_a250(a250_vars)
+        render_data = mock_doc.render.call_args[0][0]
+        assert isinstance(render_data["project_description"], RichText), (
+            f"Expected RichText, got {type(render_data['project_description'])}"
+        )
+
+    def test_detailed_scope_returns_richtext(self, qapp, tmp_path):
+        """detailed_scope with plain text -> data value is a docxtpl.RichText instance."""
+        from app import FolderSetupApp
+        from docxtpl import RichText
+        window = FolderSetupApp()
+        a250_vars = self._make_a250_vars({
+            "detailed_scope": "<p>Scope</p>",
+            "save_location": str(tmp_path),
+        })
+        mock_doc = MagicMock()
+        with patch("app.DocxTemplate", return_value=mock_doc):
+            with patch("subprocess.Popen"):
+                window._generate_a250(a250_vars)
+        render_data = mock_doc.render.call_args[0][0]
+        assert isinstance(render_data["detailed_scope"], RichText), (
+            f"Expected RichText, got {type(render_data['detailed_scope'])}"
+        )
+
+    def test_other_fields_remain_plain_strings(self, qapp, tmp_path):
+        """Non-rich-text fields like project_title continue to render as plain strings."""
+        from app import FolderSetupApp
+        window = FolderSetupApp()
+        a250_vars = self._make_a250_vars({"save_location": str(tmp_path)})
+        mock_doc = MagicMock()
+        with patch("app.DocxTemplate", return_value=mock_doc):
+            with patch("subprocess.Popen"):
+                window._generate_a250(a250_vars)
+        render_data = mock_doc.render.call_args[0][0]
+        assert isinstance(render_data["project_title"], str), (
+            f"project_title should be str, got {type(render_data['project_title'])}"
+        )
+
+    def test_invoice_to_is_not_richtext(self, qapp, tmp_path):
+        """invoice_to stays as a plain QTextEdit field (plain string output)."""
+        from app import FolderSetupApp
+        from docxtpl import RichText
+        window = FolderSetupApp()
+        a250_vars = self._make_a250_vars({
+            "invoice_to": "Custom Billing\nSuite 100",
+            "save_location": str(tmp_path),
+        })
+        mock_doc = MagicMock()
+        with patch("app.DocxTemplate", return_value=mock_doc):
+            with patch("subprocess.Popen"):
+                window._generate_a250(a250_vars)
+        render_data = mock_doc.render.call_args[0][0]
+        assert not isinstance(render_data["invoice_to"], RichText), (
+            "invoice_to should NOT be RichText"
+        )
+        assert render_data["invoice_to"] == "Custom Billing\nSuite 100"
 
 
 # ---------------------------------------------------------------------------
