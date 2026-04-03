@@ -147,6 +147,8 @@ class _HtmlToRichTextParser(HTMLParser):
                     italic=fmt.italic or None,
                     underline=fmt.underline or None,
                     strike=fmt.strike or None,
+                    font='Calibri Light',
+                    size=20,
                 )
         return rt
 
