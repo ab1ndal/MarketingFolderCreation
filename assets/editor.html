@@ -30,17 +30,25 @@
       border: none;
       background: #1e1e1e;
     }
+    /* Map registered Quill font value to actual font-family */
+    .ql-font-calibrilight {
+      font-family: 'Calibri Light', Calibri, sans-serif !important;
+    }
+    /* Ensure base editor and all children always use Calibri Light 10pt */
+    .ql-editor,
+    .ql-editor * {
+      font-family: 'Calibri Light', Calibri, sans-serif;
+      font-size: 10pt;
+    }
     .ql-editor {
       height: 100%;
       color: #f0f0f0;
-      font-family: 'Calibri Light', Calibri, sans-serif;
-      font-size: 10pt;
       background: #36353a;
     }
     /* Placeholder text color */
     .ql-editor.ql-blank::before { color: #777; font-style: normal; }
 
-    #editor { height: calc(100% - 42px); font-family: 'Calibri Light', Calibri, sans-serif; font-size: 10pt; }
+    #editor { height: calc(100% - 42px); font-family: 'Calibri Light'; font-size: 10pt; }
   </style>
 </head>
 <body>
@@ -62,10 +70,27 @@
   <div id="editor"></div>
   <script src="quill.js"></script>
   <script>
+    // Register 'calibrilight' as a whitelisted font value
+    var Font = Quill.import('formats/font');
+    Font.whitelist = ['calibrilight'];
+    Quill.register(Font, true);
+
+    // Register '10pt' as a whitelisted size value
+    var Size = Quill.import('attributors/style/size');
+    Size.whitelist = ['10pt'];
+    Quill.register(Size, true);
+
     var quill = new Quill('#editor', {
       theme: 'snow',
       modules: { toolbar: '#toolbar' }
     });
+
+    // Apply default format so new paragraphs inherit Calibri Light 10pt.
+    // quill.format() sets the format at the current selection/cursor
+    // which Quill uses as the default for new content.
+    quill.format('font', 'calibrilight');
+    quill.format('size', '10pt');
+
     function getContent() { return quill.root.innerHTML; }
     function setContent(html) { quill.root.innerHTML = html; quill.update(); }
   </script>
