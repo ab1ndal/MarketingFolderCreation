@@ -23,6 +23,7 @@ from utils.validate import validate_paths
 from utils.web_editor import WebRichTextEditor
 from utils.richtext_utils import html_to_richtext
 from workers import WorkflowWorker
+from utils.formatting import format_number
 
 
 def _resource_path(relative: str) -> Path:
@@ -320,6 +321,7 @@ class FolderSetupApp(QMainWindow):
 
             data = {k: _get_val(v) for k, v in a250_vars.items()}
             data["today"] = datetime.now().strftime("%B %#d, %Y")
+            data["today_2"] = datetime.now().strftime("%m/%d/%Y")
             data["current_date"] = data["today"]
 
             # --- Composite: requested_by ---
@@ -332,6 +334,9 @@ class FolderSetupApp(QMainWindow):
             title_sep = "\n\n" if len(name) + len(license) + len(title) > 60 else "\n"
             data["requested_by"] = f"{name}{licence_sep}{license}{title_sep}{title}\n{client}"
 
+            # --- Formatting Fees ---
+            data["fee"] = format_number(f"{data.get('fee', '')}")
+
             # --- Composite: client_signed ---
             title_sep2 = "\n" if len(name) + len(title) > 40 else ", "
             data["client_signed"] = f"{name}{title_sep2}{title}"
@@ -343,11 +348,11 @@ class FolderSetupApp(QMainWindow):
             # else leave data["invoice_to"] as the custom text the user entered
             template_path = _resource_path("templates/A250.docx")
             if data.get("file_name"):
-                output_name = f"{data.get('file_name')}.docx"
+                data["file_name"] = f"{data.get('file_name')}.docx"
             else:
-                output_name = f"A250_{data.get('project_title', 'output')}.docx"
+                data["file_name"] = f"A250_{data.get('project_title', 'output')}.docx"
             save_loc = data.get("save_location", "").strip()
-            output_path = (Path(save_loc) / output_name) if save_loc else (Path.cwd() / output_name)
+            output_path = (Path(save_loc) / data["file_name"]) if save_loc else (Path.cwd() / data["file_name"])
             doc = DocxTemplate(template_path)
             doc.render(data)
             doc.save(output_path)
