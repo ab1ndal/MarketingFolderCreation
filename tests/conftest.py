@@ -13,6 +13,12 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# app.py imports utils.web_editor -> QtWebEngineWidgets, which requires the
+# AA_ShareOpenGLContexts attribute to be set before any QApplication is created.
+# Set it at collection time (before pytest-qt's qapp fixture builds QApplication).
+from PyQt6.QtCore import Qt, QCoreApplication
+QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+
 
 @pytest.fixture
 def temp_dir():
