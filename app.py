@@ -1,4 +1,5 @@
 import sys
+import re
 import subprocess
 import pyperclip
 from datetime import datetime
@@ -8,7 +9,7 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QProgressBar, QTextEdit,
     QFileDialog, QMessageBox, QDialog, QScrollArea, QFormLayout,
-    QDialogButtonBox, QGroupBox, QComboBox
+    QDialogButtonBox, QGroupBox, QComboBox, QCheckBox
 )
 from PyQt6.QtCore import Qt, pyqtSlot, QEvent
 from PyQt6.QtGui import QTextCursor, QFont
@@ -21,6 +22,7 @@ from config import (
 )
 from utils.validate import validate_paths, validate_folder_name
 from utils.web_editor import WebRichTextEditor
+from utils.segment import derive_year, project_number, find_primary_folders
 from utils.richtext_utils import html_to_richtext
 from workers import WorkflowWorker
 from utils.formatting import format_number
@@ -79,6 +81,30 @@ class FolderSetupApp(QMainWindow):
         self.name_hint.setStyleSheet("color: #c0392b;")
         self.name_hint.setWordWrap(True)
         layout.addWidget(self.name_hint)
+
+        # Segment mode toggle + primary picker
+        self.segment_checkbox = QCheckBox("Create a Segment")
+        self.segment_checkbox.toggled.connect(self._on_segment_toggled)
+        layout.addWidget(self.segment_checkbox)
+
+        self.primary_row = QWidget()
+        primary_layout = QHBoxLayout(self.primary_row)
+        primary_layout.setContentsMargins(0, 0, 0, 0)
+        primary_lbl = QLabel("Primary Folder")
+        primary_lbl.setFixedWidth(140)
+        primary_layout.addWidget(primary_lbl)
+        self.primary_combo = QComboBox()
+        self.primary_combo.setEnabled(False)
+        primary_layout.addWidget(self.primary_combo, stretch=1)
+        layout.addWidget(self.primary_row)
+
+        self.primary_hint = QLabel("")
+        self.primary_hint.setStyleSheet("color: #c0392b;")
+        self.primary_hint.setWordWrap(True)
+        layout.addWidget(self.primary_hint)
+
+        self.primary_row.setVisible(False)
+        self.primary_hint.setVisible(False)
 
         # Rows 2-5: Path fields
         path_configs = [
@@ -154,6 +180,9 @@ class FolderSetupApp(QMainWindow):
         """Validate the project name when the field loses focus (blur)."""
         if obj is self.project_name_field and event.type() == QEvent.Type.FocusOut:
             self._validate_name_field()
+            self._apply_derived_year()
+            if self.segment_checkbox.isChecked():
+                self._scan_primaries()
         return super().eventFilter(obj, event)
 
     def _clear_name_error(self, text: str = ""):
@@ -167,6 +196,58 @@ class FolderSetupApp(QMainWindow):
         reason = None if not name else validate_folder_name(name)
         self.name_hint.setText(reason or "")
         return bool(name) and reason is None
+
+    def _apply_derived_year(self):
+        """Rewrite the <year> segment of the BD and Work target fields from the project number.
+
+        Applies in both normal and segment mode. If the field's last path component is a
+        4-digit year it is replaced; otherwise the derived year is appended. No-op when the
+        name has no usable leading number.
+        """
+        year = derive_year(self.project_name_field.text().strip(), datetime.now().year)
+        if year is None:
+            return
+        for key in ("bd_target", "work_target"):
+            field = self.path_fields[key]
+            text = field.text().strip()
+            if not text:
+                continue
+            parts = list(Path(text).parts)
+            if parts and re.fullmatch(r"(19|20)\d{2}", parts[-1]):
+                parts[-1] = str(year)
+                field.setText(str(Path(*parts)))
+            else:
+                field.setText(str(Path(text) / str(year)))
+
+    def _scan_primaries(self):
+        """Scan the BD target (V:) year root for primary folders matching the project number."""
+        self.primary_combo.clear()
+        self.primary_hint.setText("")
+        nnnnn = project_number(self.project_name_field.text().strip())
+        year_root = self.path_fields["bd_target"].text().strip()
+        if not nnnnn:
+            self.primary_combo.setEnabled(False)
+            return
+        matches = find_primary_folders(year_root, nnnnn)
+        if not matches:
+            self.primary_combo.setEnabled(False)
+            self.primary_hint.setText(
+                f"No primary folder starting with {nnnnn} found in {year_root}"
+            )
+            return
+        self.primary_combo.addItems(matches)
+        self.primary_combo.setEnabled(True)
+
+    def _on_segment_toggled(self, checked: bool):
+        """Show/hide the primary picker; scan on enable, clear on disable."""
+        self.primary_row.setVisible(checked)
+        self.primary_hint.setVisible(checked)
+        if checked:
+            self._scan_primaries()
+        else:
+            self.primary_combo.clear()
+            self.primary_combo.setEnabled(False)
+            self.primary_hint.setText("")
 
     @pyqtSlot(str, str)
     def write_log(self, message: str, level: str = "info"):
