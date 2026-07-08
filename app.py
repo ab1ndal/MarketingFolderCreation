@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
     QFileDialog, QMessageBox, QDialog, QScrollArea, QFormLayout,
     QDialogButtonBox, QGroupBox, QComboBox
 )
-from PyQt6.QtCore import Qt, pyqtSlot
+from PyQt6.QtCore import Qt, pyqtSlot, QEvent
 from PyQt6.QtGui import QTextCursor, QFont
 from docxtpl import DocxTemplate
 
@@ -19,7 +19,7 @@ from config import (
     DEFAULT_BD_TARGET, DEFAULT_WORK_TARGET, PRINCIPAL_OPTIONS, 
     PROJECT_MANAGER_OPTIONS, FEE_TYPE_OPTIONS
 )
-from utils.validate import validate_paths
+from utils.validate import validate_paths, validate_folder_name
 from utils.web_editor import WebRichTextEditor
 from utils.richtext_utils import html_to_richtext
 from workers import WorkflowWorker
@@ -68,8 +68,17 @@ class FolderSetupApp(QMainWindow):
         name_row = QHBoxLayout()
         name_row.addWidget(QLabel("Project Folder Name:"))
         self.project_name_field = QLineEdit()
+        # Validate on blur (focus out), not on every keystroke.
+        self.project_name_field.installEventFilter(self)
+        self.project_name_field.textChanged.connect(self._clear_name_error)
         name_row.addWidget(self.project_name_field, stretch=1)
         layout.addLayout(name_row)
+
+        # Inline validation hint for the project name
+        self.name_hint = QLabel("")
+        self.name_hint.setStyleSheet("color: #c0392b;")
+        self.name_hint.setWordWrap(True)
+        layout.addWidget(self.name_hint)
 
         # Rows 2-5: Path fields
         path_configs = [
@@ -129,6 +138,9 @@ class FolderSetupApp(QMainWindow):
         self.log_text.setFont(QFont("Consolas", 10))
         layout.addWidget(self.log_text, stretch=1)
 
+        # Start with Run disabled until a valid name is entered.
+        self.run_btn.setEnabled(False)
+
     # ------------------------------------------------------------------
     # Slots
     # ------------------------------------------------------------------
@@ -140,6 +152,28 @@ class FolderSetupApp(QMainWindow):
 
     def _clear_log(self):
         self.log_text.clear()
+
+    def eventFilter(self, obj, event):
+        """Validate the project name when the field loses focus (blur)."""
+        if obj is self.project_name_field and event.type() == QEvent.Type.FocusOut:
+            self._validate_name_field()
+        return super().eventFilter(obj, event)
+
+    def _clear_name_error(self, text: str = ""):
+        """Clear the inline error while the user edits the name."""
+        if self.name_hint.text():
+            self.name_hint.setText("")
+
+    def _validate_name_field(self):
+        """Show/clear the form error and gate the Run button."""
+        if self.worker and self.worker.isRunning():
+            return False
+        name = self.project_name_field.text().strip()
+        reason = None if not name else validate_folder_name(name)
+        self.name_hint.setText(reason or "")
+        valid = bool(name) and reason is None
+        self.run_btn.setEnabled(valid)
+        return valid
 
     @pyqtSlot(str, str)
     def write_log(self, message: str, level: str = "info"):
@@ -163,6 +197,12 @@ class FolderSetupApp(QMainWindow):
             self.write_log("Please enter a project folder name.", "error")
             return
 
+        reason = validate_folder_name(name)
+        if reason:
+            self.write_log(f"Invalid folder name: {reason}", "error")
+            QMessageBox.critical(self, "Invalid Folder Name", reason)
+            return
+
         paths = {k: v.text().strip() for k, v in self.path_fields.items()}
         if not validate_paths(paths, self.write_log):
             return
@@ -184,8 +224,8 @@ class FolderSetupApp(QMainWindow):
 
     @pyqtSlot(bool)
     def _on_workflow_finished(self, success: bool):
-        self.run_btn.setEnabled(True)
         self.cancel_btn.setEnabled(False)
+        self._validate_name_field()  # re-gate Run based on current name validity
         self.setWindowTitle("Project Folder Setup Tool")
         if success:
             work_target = (
