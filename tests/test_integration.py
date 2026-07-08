@@ -11,6 +11,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QMessageBox
 
 
 def _robocopy_available():
@@ -173,3 +174,58 @@ class TestSegmentWorkflow:
         qtbot.mouseClick(window.run_btn, Qt.MouseButton.LeftButton)
         assert window.worker is None  # worker never started
         assert window.primary_hint.text() != ""
+
+
+class TestPathLengthGuard:
+    """The path-length guard runs before the worker starts, so no robocopy needed."""
+
+    def _setup_long_template(self, tmp_path):
+        longname = "L" * 200  # single component well within 255, deep enough to trip guard
+        mkt = tmp_path / "mkt"
+        (mkt / longname).mkdir(parents=True)
+        (mkt / longname / "f.txt").write_text("x")
+        work = tmp_path / "work"
+        (work / longname).mkdir(parents=True)
+        (work / longname / "f.txt").write_text("x")
+        bd_target = tmp_path / "V"; bd_target.mkdir()
+        work_target = tmp_path / "W"; work_target.mkdir()
+        return mkt, work, bd_target, work_target
+
+    def _fill(self, window, mkt, work, bd_target, work_target, name):
+        window.path_fields["marketing_template"].setText(str(mkt))
+        window.path_fields["work_template"].setText(str(work))
+        window.path_fields["bd_target"].setText(str(bd_target))
+        window.path_fields["work_target"].setText(str(work_target))
+        window.project_name_field.setText(name)
+
+    def test_long_path_prompts_and_cancel_stops_run(self, qtbot, tmp_path):
+        from app import FolderSetupApp
+        mkt, work, bd_target, work_target = self._setup_long_template(tmp_path)
+        window = FolderSetupApp()
+        qtbot.addWidget(window)
+        self._fill(window, mkt, work, bd_target, work_target, "Proj")
+
+        with patch("app.QMessageBox.question",
+                   return_value=QMessageBox.StandardButton.No) as q:
+            window._run_workflow()
+
+        q.assert_called_once()
+        assert window.worker is None
+
+    def test_short_path_does_not_prompt(self, qtbot, tmp_path):
+        from app import FolderSetupApp
+        # Shallow templates + short target => guard must not fire.
+        mkt = tmp_path / "mkt"; mkt.mkdir(); (mkt / "a.txt").write_text("x")
+        work = tmp_path / "work"; work.mkdir(); (work / "b.txt").write_text("x")
+        bd_target = tmp_path / "V"; bd_target.mkdir()
+        work_target = tmp_path / "W"; work_target.mkdir()
+        window = FolderSetupApp()
+        qtbot.addWidget(window)
+        self._fill(window, mkt, work, bd_target, work_target, "Proj")
+
+        with patch("app.QMessageBox.question") as q:
+            proceed = window._confirm_path_length(
+                {k: v.text() for k, v in window.path_fields.items()}, "Proj", None
+            )
+        q.assert_not_called()
+        assert proceed is True

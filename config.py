@@ -4,6 +4,10 @@ DEFAULT_BD_TARGET = r"V:\\"
 DEFAULT_WORK_TARGET = r"W:\\"
 FOLDER_TO_DELETE = "1 Marketing"
 
+# Characters reserved below the Windows 260-char MAX_PATH when warning about
+# projected path length, leaving headroom for files users add inside the folders.
+PATH_LENGTH_MARGIN = 40
+
 PRINCIPAL_OPTIONS = [
     "Choose a Principal",
     "Ryan Wilkerson, Principal, #S4728",

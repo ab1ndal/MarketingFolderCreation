@@ -17,12 +17,13 @@ from docxtpl import DocxTemplate
 
 from config import (
     DEFAULT_MARKETING_TEMPLATE, DEFAULT_WORK_TEMPLATE,
-    DEFAULT_BD_TARGET, DEFAULT_WORK_TARGET, PRINCIPAL_OPTIONS, 
-    PROJECT_MANAGER_OPTIONS, FEE_TYPE_OPTIONS
+    DEFAULT_BD_TARGET, DEFAULT_WORK_TARGET, PRINCIPAL_OPTIONS,
+    PROJECT_MANAGER_OPTIONS, FEE_TYPE_OPTIONS, PATH_LENGTH_MARGIN
 )
 from utils.validate import validate_paths, validate_folder_name
 from utils.web_editor import WebRichTextEditor
 from utils.segment import derive_year, project_number, find_primary_folders
+from utils.pathcheck import projected_path_len, WINDOWS_MAX_PATH
 from utils.richtext_utils import html_to_richtext
 from workers import WorkflowWorker
 from utils.formatting import format_number
@@ -290,6 +291,50 @@ class FolderSetupApp(QMainWindow):
         self.step_label.setText(description)
         self.setWindowTitle(f"Project Folder Setup Tool — {description}")
 
+    def _confirm_path_length(self, paths: dict, name: str, primary: str | None) -> bool:
+        """Warn if the projected deepest path nears MAX_PATH. Return True to proceed.
+
+        Projects, per drive, the target base (with the primary inserted in segment mode)
+        plus the deepest subpath of the corresponding template. Reserves PATH_LENGTH_MARGIN
+        below the limit for files the user adds later. Shows a Yes/No dialog on risk.
+        """
+        bd_base = Path(paths["bd_target"])
+        work_base = Path(paths["work_target"])
+        if primary:
+            bd_base = bd_base / primary
+            work_base = work_base / primary
+        bd_base = bd_base / name
+        work_base = work_base / name
+
+        long_paths = []
+        for label, base, template in (
+            ("BD", bd_base, paths["marketing_template"]),
+            ("Work", work_base, paths["work_template"]),
+        ):
+            projected = projected_path_len(str(base), template)
+            if projected > WINDOWS_MAX_PATH - PATH_LENGTH_MARGIN:
+                long_paths.append((label, projected))
+
+        if not long_paths:
+            return True
+
+        detail = "\n".join(f"  {label} drive: ~{n} characters" for label, n in long_paths)
+        resp = QMessageBox.question(
+            self,
+            "Long Path Warning",
+            f"The deepest folder path may reach the lengths below, near Windows' "
+            f"{WINDOWS_MAX_PATH}-character limit "
+            f"({PATH_LENGTH_MARGIN} reserved for files you add later):\n\n{detail}\n\n"
+            f"Paths this long can be hard to open in Explorer/Office and may break the "
+            f"shortcut. Shorten the name/segment, or create anyway?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if resp != QMessageBox.StandardButton.Yes:
+            self.write_log("Cancelled: projected path length near the Windows limit.", "warn")
+            return False
+        return True
+
     def _run_workflow(self):
         self._clear_log()
         name = self.project_name_field.text().strip()
@@ -317,6 +362,11 @@ class FolderSetupApp(QMainWindow):
                 )
                 self.write_log("Segment mode: no primary folder selected.", "error")
                 return
+
+        # Path-length guard: project the deepest path after copy and warn (allow
+        # proceeding) if it nears the Windows MAX_PATH limit.
+        if not self._confirm_path_length(paths, name, primary):
+            return
 
         self.run_btn.setEnabled(False)
         self.cancel_btn.setEnabled(True)
