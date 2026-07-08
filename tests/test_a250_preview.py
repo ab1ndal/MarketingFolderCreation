@@ -69,3 +69,16 @@ def test_preview_never_raises_on_bad_widget(qapp):
     preview = QTextBrowser()
     window._refresh_preview({}, preview)  # empty -> still renders section headers
     assert "Derived" in preview.toPlainText()
+
+
+def test_collect_raw_never_syncs_on_preview(qapp):
+    """Preview (use_cache=True) must NOT call get_html_sync — the editor page may
+    not be loaded yet, which throws 'getContent is not defined' in JS."""
+    from app import FolderSetupApp
+    window = FolderSetupApp()
+    ed = Mock(spec=WebRichTextEditor)
+    ed.cached_html = Mock(return_value="")  # nothing typed / page not ready
+    ed.get_html_sync = Mock(side_effect=AssertionError("get_html_sync must not run during preview"))
+    raw = window._collect_a250_raw({"detailed_scope": ed}, use_cache=True)
+    assert raw["detailed_scope"] == ""
+    ed.get_html_sync.assert_not_called()

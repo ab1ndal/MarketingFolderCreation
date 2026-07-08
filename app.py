@@ -624,11 +624,10 @@ class FolderSetupApp(QMainWindow):
             if isinstance(w, QComboBox):
                 raw[key] = w.currentText()
             elif isinstance(w, WebRichTextEditor):
-                if use_cache:
-                    html = w.cached_html()
-                    raw[key] = html if html else w.get_html_sync()
-                else:
-                    raw[key] = w.get_html_sync()
+                # Preview reads the bridge cache only — a synchronous pull here can
+                # run getContent() before the editor page has loaded, throwing
+                # "getContent is not defined". Generation (use_cache=False) pulls.
+                raw[key] = w.cached_html() if use_cache else w.get_html_sync()
             elif isinstance(w, QTextEdit):
                 raw[key] = w.toPlainText()
             else:
