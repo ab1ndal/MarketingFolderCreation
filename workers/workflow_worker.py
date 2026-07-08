@@ -24,17 +24,19 @@ class WorkflowWorker(QThread):
     log_message = pyqtSignal(str, str)
     finished = pyqtSignal(bool)
 
-    def __init__(self, project_name: str, paths: dict, parent=None):
+    def __init__(self, project_name: str, paths: dict, primary: str | None = None, parent=None):
         """
         Args:
             project_name: The project folder name entered by the user.
             paths: Dict with keys marketing_template, work_template, bd_target, work_target.
                    All values are strings (raw paths from UI fields).
+            primary: In segment mode, the primary folder name to nest under; None otherwise.
             parent: Optional QObject parent.
         """
         super().__init__(parent)
         self.project_name = project_name
         self.paths = paths
+        self.primary = primary
         self._cancel_event = threading.Event()
 
     def cancel(self):
@@ -48,11 +50,32 @@ class WorkflowWorker(QThread):
         """Emit a log_message signal (thread-safe via Qt signal)."""
         self.log_message.emit(message, level)
 
+    def _resolve_targets(self):
+        """Return (bd_target, work_target) Paths, inserting the primary folder in segment mode."""
+        bd_root = Path(self.paths["bd_target"])
+        work_root = Path(self.paths["work_target"])
+        if self.primary:
+            return (
+                bd_root / self.primary / self.project_name,
+                work_root / self.primary / self.project_name,
+            )
+        return (bd_root / self.project_name, work_root / self.project_name)
+
+    def _maybe_warn_missing_primary(self):
+        """Warn (but do not block) if the primary is missing under the Work year root."""
+        if self.primary:
+            work_primary = Path(self.paths["work_target"]) / self.primary
+            if not work_primary.exists():
+                self._log(
+                    f"Primary '{self.primary}' not found on Work drive; it will be created",
+                    "warn",
+                )
+
     def run(self):
         """Main worker body. Runs in background thread."""
         try:
-            bd_target = Path(self.paths["bd_target"]) / self.project_name
-            work_target = Path(self.paths["work_target"]) / self.project_name
+            bd_target, work_target = self._resolve_targets()
+            self._maybe_warn_missing_primary()
             shortcut_name = FOLDER_TO_DELETE + ".lnk"
 
             # Step 1+2: Copy BD template and Work template in PARALLEL
