@@ -138,9 +138,6 @@ class FolderSetupApp(QMainWindow):
         self.log_text.setFont(QFont("Consolas", 10))
         layout.addWidget(self.log_text, stretch=1)
 
-        # Start with Run disabled until a valid name is entered.
-        self.run_btn.setEnabled(False)
-
     # ------------------------------------------------------------------
     # Slots
     # ------------------------------------------------------------------
@@ -165,15 +162,11 @@ class FolderSetupApp(QMainWindow):
             self.name_hint.setText("")
 
     def _validate_name_field(self):
-        """Show/clear the form error and gate the Run button."""
-        if self.worker and self.worker.isRunning():
-            return False
+        """Show/clear the inline form error for the project name."""
         name = self.project_name_field.text().strip()
         reason = None if not name else validate_folder_name(name)
         self.name_hint.setText(reason or "")
-        valid = bool(name) and reason is None
-        self.run_btn.setEnabled(valid)
-        return valid
+        return bool(name) and reason is None
 
     @pyqtSlot(str, str)
     def write_log(self, message: str, level: str = "info"):
@@ -194,13 +187,14 @@ class FolderSetupApp(QMainWindow):
         self._clear_log()
         name = self.project_name_field.text().strip()
         if not name:
+            self.name_hint.setText("Folder name is empty.")
             self.write_log("Please enter a project folder name.", "error")
             return
 
         reason = validate_folder_name(name)
         if reason:
+            self.name_hint.setText(reason)
             self.write_log(f"Invalid folder name: {reason}", "error")
-            QMessageBox.critical(self, "Invalid Folder Name", reason)
             return
 
         paths = {k: v.text().strip() for k, v in self.path_fields.items()}
@@ -224,8 +218,8 @@ class FolderSetupApp(QMainWindow):
 
     @pyqtSlot(bool)
     def _on_workflow_finished(self, success: bool):
+        self.run_btn.setEnabled(True)
         self.cancel_btn.setEnabled(False)
-        self._validate_name_field()  # re-gate Run based on current name validity
         self.setWindowTitle("Project Folder Setup Tool")
         if success:
             work_target = (
