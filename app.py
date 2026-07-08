@@ -95,6 +95,7 @@ class FolderSetupApp(QMainWindow):
         primary_layout.addWidget(primary_lbl)
         self.primary_combo = QComboBox()
         self.primary_combo.setEnabled(False)
+        self.primary_combo.currentIndexChanged.connect(lambda _=None: self._update_dest_note())
         primary_layout.addWidget(self.primary_combo, stretch=1)
         layout.addWidget(self.primary_row)
 
@@ -125,6 +126,13 @@ class FolderSetupApp(QMainWindow):
             row.addWidget(browse_btn)
             self.path_fields[key] = field
             layout.addLayout(row)
+
+        # Note under the targets: shows the nested destination in segment mode
+        self.dest_note = QLabel("")
+        self.dest_note.setStyleSheet("color: #555; font-style: italic;")
+        self.dest_note.setWordWrap(True)
+        self.dest_note.setVisible(False)
+        layout.addWidget(self.dest_note)
 
         # Row 6: Progress bar
         self.progress_bar = QProgressBar()
@@ -183,6 +191,7 @@ class FolderSetupApp(QMainWindow):
             self._apply_derived_year()
             if self.segment_checkbox.isChecked():
                 self._scan_primaries()
+            self._update_dest_note()
         return super().eventFilter(obj, event)
 
     def _clear_name_error(self, text: str = ""):
@@ -237,6 +246,22 @@ class FolderSetupApp(QMainWindow):
             return
         self.primary_combo.addItems(matches)
         self.primary_combo.setEnabled(True)
+        self._update_dest_note()
+
+    def _update_dest_note(self):
+        """Show a note with the full nested destination path(s) in segment mode."""
+        primary = self.primary_combo.currentText().strip()
+        segment = self.project_name_field.text().strip()
+        if not self.segment_checkbox.isChecked() or not primary or not segment:
+            self.dest_note.setText("")
+            self.dest_note.setVisible(False)
+            return
+        bd = Path(self.path_fields["bd_target"].text().strip()) / primary / segment
+        work = Path(self.path_fields["work_target"].text().strip()) / primary / segment
+        self.dest_note.setText(
+            f"Segment will be created in:\nBD:   {bd}\nWork: {work}"
+        )
+        self.dest_note.setVisible(True)
 
     def _on_segment_toggled(self, checked: bool):
         """Show/hide the primary picker; scan on enable, clear on disable."""
@@ -248,6 +273,7 @@ class FolderSetupApp(QMainWindow):
             self.primary_combo.clear()
             self.primary_combo.setEnabled(False)
             self.primary_hint.setText("")
+        self._update_dest_note()
 
     @pyqtSlot(str, str)
     def write_log(self, message: str, level: str = "info"):

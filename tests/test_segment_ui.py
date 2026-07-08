@@ -66,3 +66,33 @@ class TestScanPrimaries:
         assert window.primary_combo.count() == 0
         assert window.primary_combo.isEnabled() is False
         assert "77777" in window.primary_hint.text()
+
+
+class TestDestinationNote:
+    def test_empty_in_normal_mode(self, window):
+        assert window.dest_note.text() == ""
+
+    def test_shows_nested_paths_when_primary_selected(self, window, tmp_path):
+        (tmp_path / "12345 - Main").mkdir()
+        window.path_fields["bd_target"].setText(str(tmp_path))
+        window.path_fields["work_target"].setText(str(tmp_path / "work"))
+        window.project_name_field.setText("12345.01 - Seg")
+        window.segment_checkbox.setChecked(True)  # toggle -> scan + note
+        text = window.dest_note.text()
+        assert "12345 - Main" in text
+        assert "12345.01 - Seg" in text
+        assert str(tmp_path / "work") in text
+
+    def test_cleared_when_unchecked(self, window, tmp_path):
+        (tmp_path / "12345 - Main").mkdir()
+        window.path_fields["bd_target"].setText(str(tmp_path))
+        window.project_name_field.setText("12345.01 - Seg")
+        window.segment_checkbox.setChecked(True)
+        window.segment_checkbox.setChecked(False)
+        assert window.dest_note.text() == ""
+
+    def test_empty_when_no_primary_match(self, window, tmp_path):
+        window.path_fields["bd_target"].setText(str(tmp_path))
+        window.project_name_field.setText("77777.01 - Seg")
+        window.segment_checkbox.setChecked(True)
+        assert window.dest_note.text() == ""
