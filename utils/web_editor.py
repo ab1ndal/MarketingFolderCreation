@@ -7,7 +7,23 @@ from pathlib import Path
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtCore import QUrl
+from PyQt6.QtWebChannel import QWebChannel
+from PyQt6.QtCore import QUrl, QObject, pyqtSlot
+
+
+class _QuillBridge(QObject):
+    """Receives Quill text-change pushes from JS via QWebChannel."""
+
+    def __init__(self):
+        super().__init__()
+        self._html = ""
+        self._callback = None
+
+    @pyqtSlot(str)
+    def onQuillChanged(self, html: str):
+        self._html = html
+        if self._callback:
+            self._callback()
 
 
 def _resource_path(relative: str) -> Path:
@@ -35,6 +51,13 @@ class WebRichTextEditor(QWidget):
         self._view = QWebEngineView()
         self._view.setFixedHeight(height)
         layout.addWidget(self._view)
+
+        # Bridge must be registered before the page loads so qt.webChannelTransport
+        # is available to the page's JS. Hold Python refs so neither is GC'd.
+        self._bridge = _QuillBridge()
+        self._channel = QWebChannel()
+        self._channel.registerObject("bridge", self._bridge)
+        self._view.page().setWebChannel(self._channel)
 
         editor_html = _resource_path("assets/editor.html")
         self._view.load(QUrl.fromLocalFile(str(editor_html)))
@@ -74,6 +97,14 @@ class WebRichTextEditor(QWidget):
     def set_html(self, html: str) -> None:
         escaped = html.replace("\\", "\\\\").replace("`", "\\`")
         self._view.page().runJavaScript(f"setContent(`{escaped}`);")
+
+    def set_change_callback(self, fn) -> None:
+        """Register a zero-arg callable invoked on every Quill text-change."""
+        self._bridge._callback = fn
+
+    def cached_html(self) -> str:
+        """Latest HTML pushed by the Quill bridge ('' before any change)."""
+        return self._bridge._html
 
     # Compatibility shims so isinstance checks in app.py remain simple
     def toHtml(self) -> str:

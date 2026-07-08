@@ -9,9 +9,9 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QProgressBar, QTextEdit,
     QFileDialog, QMessageBox, QDialog, QScrollArea, QFormLayout,
-    QDialogButtonBox, QGroupBox, QComboBox, QCheckBox
+    QDialogButtonBox, QGroupBox, QComboBox, QCheckBox, QSplitter, QTextBrowser
 )
-from PyQt6.QtCore import Qt, pyqtSlot, QEvent
+from PyQt6.QtCore import Qt, pyqtSlot, QEvent, QTimer
 from PyQt6.QtGui import QTextCursor, QFont
 from docxtpl import DocxTemplate
 
@@ -27,6 +27,7 @@ from utils.pathcheck import projected_path_len, WINDOWS_MAX_PATH
 from utils.richtext_utils import html_to_richtext
 from workers import WorkflowWorker
 from utils.formatting import format_number
+from utils.a250_context import build_a250_context
 
 
 def _resource_path(relative: str) -> Path:
@@ -37,6 +38,58 @@ def _resource_path(relative: str) -> Path:
     """
     base = Path(getattr(sys, '_MEIPASS', Path(__file__).parent))
     return base / relative
+
+
+A250_FIELD_GROUPS = [
+    ("Project Info", [
+        ("project_title", "Project Title"),
+        ("project_address", "Project Address"),
+        ("client", "Company Name"),
+        ("nya_project_code", "NYA Project Code"),
+        ("client_project_code", "Client Project Code"),
+    ]),
+    ("Client Contact", [
+        ("client_name", "Client Name"),
+        ("client_title", "Title"),
+        ("client_license", "Licenses"),
+        ("client_phone", "Phone Number"),
+        ("client_mobile", "Mobile Number"),
+        ("client_email", "Email Address"),
+    ]),
+    ("Billing", [
+        ("invoice_to", "Invoice To"),
+        ("client_office_no", "Office Number"),
+        ("client_invoice_email", "Invoice Email"),
+        ("client_address", "Client Address"),
+    ]),
+    ("Scope & Fee", [
+        ("request_date", "Request Date"),
+        ("received_date", "Received Date"),
+        ("project_description", "Project Description"),
+        ("detailed_scope", "Detailed Scope"),
+        ("fee_type", "Fee Type"),
+        ("fee", "Fee"),
+    ]),
+    ("Additional Info", [
+        ("principal_name", "Principal Name"),
+        ("project_manager", "Project Manager"),
+    ]),
+    ("Output", [
+        ("save_location", "Save Location"),
+        ("file_name", "File Name"),
+        ("a250_creator", "Created By"),
+    ]),
+]
+
+# Derived/composite values shown in their own preview section with a note.
+A250_COMPOSITE_KEYS = ["requested_by", "invoice_to", "client_signed", "fee", "today"]
+A250_COMPOSITE_NOTES = {
+    "requested_by": "auto-built from Name / License / Title / Company",
+    "invoice_to": "your custom text, else same as Requested By",
+    "client_signed": "auto-built from Name / Title",
+    "fee": "formatted with thousands separators and 2 decimals",
+    "today": "today's date, inserted automatically",
+}
 
 
 class FolderSetupApp(QMainWindow):
@@ -412,61 +465,31 @@ class FolderSetupApp(QMainWindow):
     def _open_a250_form(self):
         dialog = QDialog(self)
         dialog.setWindowTitle("Create A250")
-        dialog.resize(700, 780)
+        dialog.resize(1150, 820)
 
         outer_layout = QVBoxLayout(dialog)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        outer_layout.addWidget(splitter)
 
-        # Scrollable area
+        # ---- Left: scrollable form ----
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         container = QWidget()
         container_layout = QVBoxLayout(container)
         scroll.setWidget(container)
-        outer_layout.addWidget(scroll)
+        splitter.addWidget(scroll)
+
+        # ---- Right: live preview ----
+        preview_panel = QWidget()
+        pv_layout = QVBoxLayout(preview_panel)
+        pv_layout.addWidget(QLabel("Preview — how your entries map to the document"))
+        preview = QTextBrowser()
+        pv_layout.addWidget(preview)
+        splitter.addWidget(preview_panel)
+        splitter.setStretchFactor(0, 55)
+        splitter.setStretchFactor(1, 45)
 
         a250_vars = {}
-
-        groups = [
-            ("Project Info", [
-                ("project_title",       "Project Title"),
-                ("project_address",     "Project Address"),
-                ("client",              "Company Name"),
-                ("nya_project_code",    "NYA Project Code"),
-                ("client_project_code", "Client Project Code"),
-            ]),
-            ("Client Contact", [
-                ("client_name",    "Client Name"),
-                ("client_title",   "Title"),
-                ("client_license", "Licenses"),
-                ("client_phone",   "Phone Number"),
-                ("client_mobile",  "Mobile Number"),
-                ("client_email",   "Email Address")
-            ]),
-            ("Billing", [
-                ("invoice_to",           "Invoice To"),
-                ("client_office_no",     "Office Number"),
-                ("client_invoice_email", "Invoice Email"),
-                ("client_address",       "Client Address")
-            ]),
-            ("Scope & Fee", [
-                ("request_date",        "Request Date"),
-                ("received_date",       "Received Date"),
-                ("project_description", "Project Description"),
-                ("detailed_scope",      "Detailed Scope"),
-                ("fee_type",            "Fee Type"),
-                ("fee",                 "Fee"),
-            ]),
-            ("Additional Info", [
-                ("principal_name", "Principal Name"),
-                ("project_manager", "Project Manager")
-            ]),
-            ("Output", [
-                ("save_location", "Save Location"),
-                ("file_name", "File Name"),
-                ("a250_creator",  "Created By"),
-            ]),
-        ]
-
         COMBO_FIELDS = {
             "principal_name": PRINCIPAL_OPTIONS,
             "project_manager": PROJECT_MANAGER_OPTIONS,
@@ -475,7 +498,7 @@ class FolderSetupApp(QMainWindow):
         MULTILINE_FIELDS = {"project_address", "client_address", "invoice_to"}
         RICH_TEXT_FIELDS = {"project_description", "detailed_scope"}
 
-        for section_title, field_pairs in groups:
+        for section_title, field_pairs in A250_FIELD_GROUPS:
             group_box = QGroupBox(section_title)
             form = QFormLayout(group_box)
             for key, label in field_pairs:
@@ -498,7 +521,29 @@ class FolderSetupApp(QMainWindow):
 
         container_layout.addStretch()
 
-        # Buttons
+        # ---- Debounced live preview refresh ----
+        preview_timer = QTimer(dialog)
+        preview_timer.setSingleShot(True)
+        preview_timer.setInterval(300)
+        preview_timer.timeout.connect(lambda: self._refresh_preview(a250_vars, preview))
+
+        def schedule(*_):
+            preview_timer.start()  # restart cancels the prior pending fire
+
+        for key, widget in a250_vars.items():
+            if isinstance(widget, QComboBox):
+                widget.currentTextChanged.connect(schedule)
+            elif isinstance(widget, WebRichTextEditor):
+                widget.set_change_callback(schedule)
+            elif isinstance(widget, QTextEdit):
+                widget.textChanged.connect(schedule)
+            else:
+                widget.textChanged.connect(schedule)
+
+        # Initial render (fields empty)
+        self._refresh_preview(a250_vars, preview)
+
+        # ---- Buttons ----
         btn_box = QDialogButtonBox()
         generate_btn = btn_box.addButton("Generate A250", QDialogButtonBox.ButtonRole.AcceptRole)
         cancel_btn = btn_box.addButton("Close", QDialogButtonBox.ButtonRole.RejectRole)
@@ -509,45 +554,96 @@ class FolderSetupApp(QMainWindow):
 
         dialog.exec()
 
+    def _refresh_preview(self, a250_vars: dict, preview: QTextBrowser) -> None:
+        """Recompute the resolved-values preview from current field values."""
+        try:
+            raw = self._collect_a250_raw(a250_vars, use_cache=True)
+            ctx = build_a250_context(raw)
+            rich_keys = {k for k, w in a250_vars.items() if isinstance(w, WebRichTextEditor)}
+            preview.setHtml(self._render_preview_html(ctx, rich_keys))
+        except Exception as e:  # never let the preview crash the form
+            import html as _h
+            preview.setHtml(
+                f"<p style='color:#c0392b'>Preview unavailable: {_h.escape(str(e))}</p>"
+            )
+
+    def _render_preview_html(self, ctx: dict, rich_keys: set) -> str:
+        """Render the template context as grouped HTML for the QTextBrowser."""
+        import html as _h
+
+        def cell(key: str) -> str:
+            v = ctx.get(key, "")
+            if key in rich_keys:
+                return v if (v and v.strip() and v.strip() != "<p></p>") \
+                    else "<span style='color:#999'>&mdash;</span>"
+            v = "" if v is None else str(v)
+            if not v.strip():
+                return "<span style='color:#999'>&mdash;</span>"
+            return _h.escape(v).replace("\n", "<br>")
+
+        parts = [
+            "<style>"
+            "body{font-family:'Segoe UI',sans-serif;font-size:13px;}"
+            "h3{margin:12px 0 4px;font-size:13px;border-bottom:1px solid #ccc;}"
+            "h3.comp{color:#2d7d46;}"
+            "table{width:100%;border-collapse:collapse;}"
+            "td{padding:2px 6px;vertical-align:top;}"
+            "td.lbl{color:#555;width:40%;}"
+            "td.comp{color:#2d7d46;font-weight:bold;}"
+            ".note{color:#999;font-weight:normal;font-size:11px;}"
+            "</style>"
+        ]
+        for section_title, field_pairs in A250_FIELD_GROUPS:
+            parts.append(f"<h3>{_h.escape(section_title)}</h3><table>")
+            for key, label in field_pairs:
+                parts.append(
+                    f"<tr><td class='lbl'>{_h.escape(label)}</td><td>{cell(key)}</td></tr>"
+                )
+            parts.append("</table>")
+
+        parts.append("<h3 class='comp'>Derived &amp; Composite</h3><table>")
+        for key in A250_COMPOSITE_KEYS:
+            note = A250_COMPOSITE_NOTES.get(key, "")
+            parts.append(
+                f"<tr><td class='lbl comp'>{_h.escape(key)}"
+                f"<br><span class='note'>{_h.escape(note)}</span></td>"
+                f"<td>{cell(key)}</td></tr>"
+            )
+        parts.append("</table>")
+        return "".join(parts)
+
+    def _collect_a250_raw(self, a250_vars: dict, use_cache: bool = False) -> dict:
+        """Gather raw string values from every A250 widget.
+
+        Rich-text fields return HTML. When use_cache is True, rich-text uses the
+        last value pushed by the Quill bridge (cheap, no JS round-trip), falling
+        back to a synchronous pull if the cache is empty.
+        """
+        raw = {}
+        for key, w in a250_vars.items():
+            if isinstance(w, QComboBox):
+                raw[key] = w.currentText()
+            elif isinstance(w, WebRichTextEditor):
+                # Preview reads the bridge cache only — a synchronous pull here can
+                # run getContent() before the editor page has loaded, throwing
+                # "getContent is not defined". Generation (use_cache=False) pulls.
+                raw[key] = w.cached_html() if use_cache else w.get_html_sync()
+            elif isinstance(w, QTextEdit):
+                raw[key] = w.toPlainText()
+            else:
+                raw[key] = w.text()
+        return raw
+
     def _generate_a250(self, a250_vars: dict):
         try:
-            def _get_val(w):
-                if isinstance(w, QComboBox):
-                    return w.currentText()
-                elif isinstance(w, WebRichTextEditor):
-                    return html_to_richtext(w.get_html_sync())
-                elif isinstance(w, QTextEdit):
-                    return w.toPlainText()
-                else:
-                    return w.text()
+            raw = self._collect_a250_raw(a250_vars)
+            data = build_a250_context(raw)
 
-            data = {k: _get_val(v) for k, v in a250_vars.items()}
-            data["today"] = datetime.now().strftime("%B %#d, %Y")
-            data["today_2"] = datetime.now().strftime("%m/%d/%Y")
-            data["current_date"] = data["today"]
+            # Convert rich-text HTML fields to docxtpl RichText for the document
+            for key, w in a250_vars.items():
+                if isinstance(w, WebRichTextEditor):
+                    data[key] = html_to_richtext(raw[key])
 
-            # --- Composite: requested_by ---
-            name     = data.get("client_name", "").strip()
-            license  = data.get("client_license", "").strip()
-            title    = data.get("client_title", "").strip()
-            client   = data.get("client", "").strip()
-
-            licence_sep = ", " if license else ""
-            title_sep = "\n\n" if len(name) + len(license) + len(title) > 60 else "\n"
-            data["requested_by"] = f"{name}{licence_sep}{license}{title_sep}{title}\n{client}"
-
-            # --- Formatting Fees ---
-            data["fee"] = format_number(f"{data.get('fee', '')}")
-
-            # --- Composite: client_signed ---
-            title_sep2 = "\n" if len(name) + len(title) > 40 else ", "
-            data["client_signed"] = f"{name}{title_sep2}{title}"
-
-            # --- Composite: invoice_to ---
-            invoice_custom = data.get("invoice_to", "").strip()
-            if not invoice_custom:
-                data["invoice_to"] = data["requested_by"]
-            # else leave data["invoice_to"] as the custom text the user entered
             template_path = _resource_path("templates/A250.docx")
             if data.get("file_name"):
                 data["file_name"] = f"{data.get('file_name')}.docx"

@@ -69,6 +69,7 @@
   </div>
   <div id="editor"></div>
   <script src="quill.js"></script>
+  <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
   <script>
     // Register 'calibrilight' as a whitelisted font value
     var Font = Quill.import('formats/font');
@@ -93,6 +94,16 @@
 
     function getContent() { return quill.root.innerHTML; }
     function setContent(html) { quill.root.innerHTML = html; quill.update(); }
+
+    // Push Quill changes to Python via QWebChannel (event-push, not polling).
+    if (typeof qt !== 'undefined' && qt.webChannelTransport) {
+      new QWebChannel(qt.webChannelTransport, function (channel) {
+        window.bridge = channel.objects.bridge;
+        quill.on('text-change', function () {
+          if (window.bridge) window.bridge.onQuillChanged(quill.root.innerHTML);
+        });
+      });
+    }
   </script>
 </body>
 </html>
