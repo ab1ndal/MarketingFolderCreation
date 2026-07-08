@@ -6,7 +6,8 @@ FOLDER_TO_DELETE = "1 Marketing"
 
 # Characters reserved below the Windows 260-char MAX_PATH when warning about
 # projected path length, leaving headroom for files users add inside the folders.
-PATH_LENGTH_MARGIN = 40
+# The warning is advisory only — users can always proceed.
+PATH_LENGTH_MARGIN = 150
 
 PRINCIPAL_OPTIONS = [
     "Choose a Principal",

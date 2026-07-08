@@ -61,8 +61,10 @@ class TestWorkflowIntegration:
         window.path_fields["bd_target"].setText(str(bd_target))
         window.path_fields["work_target"].setText(str(work_target))
 
-        # Patch pyperclip.copy to avoid clipboard contention errors in headless/CI environments
-        with patch("app.pyperclip.copy"):
+        # Patch pyperclip.copy to avoid clipboard contention errors in headless/CI environments.
+        # Long tmp paths trip the path-length guard, so auto-confirm it.
+        with patch("app.pyperclip.copy"), \
+             patch("app.QMessageBox.question", return_value=QMessageBox.StandardButton.Yes):
             qtbot.mouseClick(window.run_btn, Qt.MouseButton.LeftButton)
 
             # Wait for the worker.finished signal (timeout 30s for robocopy)
@@ -93,8 +95,10 @@ class TestWorkflowIntegration:
         window.path_fields["bd_target"].setText(str(bd_target))
         window.path_fields["work_target"].setText(str(work_target))
 
-        # Patch QMessageBox.warning to avoid blocking dialog if workflow emits finished(False)
-        with patch("app.QMessageBox.warning"):
+        # Patch QMessageBox.warning to avoid blocking dialog if workflow emits finished(False).
+        # Long tmp paths trip the path-length guard, so auto-confirm it.
+        with patch("app.QMessageBox.warning"), \
+             patch("app.QMessageBox.question", return_value=QMessageBox.StandardButton.Yes):
             qtbot.mouseClick(window.run_btn, Qt.MouseButton.LeftButton)
 
             # Cancel immediately after starting (worker may still be running or may have finished)
@@ -144,7 +148,8 @@ class TestSegmentWorkflow:
         window._scan_primaries()
         assert window.primary_combo.currentText() == "12345 - Main Project"
 
-        with patch("app.pyperclip.copy"):
+        with patch("app.pyperclip.copy"), \
+             patch("app.QMessageBox.question", return_value=QMessageBox.StandardButton.Yes):
             qtbot.mouseClick(window.run_btn, Qt.MouseButton.LeftButton)
             with qtbot.waitSignal(window.worker.finished, timeout=30000) as blocker:
                 pass
@@ -214,18 +219,20 @@ class TestPathLengthGuard:
 
     def test_short_path_does_not_prompt(self, qtbot, tmp_path):
         from app import FolderSetupApp
-        # Shallow templates + short target => guard must not fire.
+        # Shallow templates + short synthetic target => guard must not fire,
+        # regardless of PATH_LENGTH_MARGIN. Real tmp paths are long, so use short bases.
         mkt = tmp_path / "mkt"; mkt.mkdir(); (mkt / "a.txt").write_text("x")
         work = tmp_path / "work"; work.mkdir(); (work / "b.txt").write_text("x")
-        bd_target = tmp_path / "V"; bd_target.mkdir()
-        work_target = tmp_path / "W"; work_target.mkdir()
         window = FolderSetupApp()
         qtbot.addWidget(window)
-        self._fill(window, mkt, work, bd_target, work_target, "Proj")
+        paths = {
+            "marketing_template": str(mkt),
+            "work_template": str(work),
+            "bd_target": r"V:\2025",
+            "work_target": r"W:\2025",
+        }
 
         with patch("app.QMessageBox.question") as q:
-            proceed = window._confirm_path_length(
-                {k: v.text() for k, v in window.path_fields.items()}, "Proj", None
-            )
+            proceed = window._confirm_path_length(paths, "Proj", None)
         q.assert_not_called()
         assert proceed is True
