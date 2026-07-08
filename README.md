@@ -1,6 +1,6 @@
 # Project Folder Setup Tool
 
-A PyQt6 GUI application that automates creation of structured project directories for both marketing (BD) and work drives at Nabih Youssef & Associates. Copies template folder structures, replaces the `1 Marketing` subfolder in the work tree with a shortcut pointing back to the BD drive, and can generate A250 fee proposal documents from a Word template.
+A PyQt6 GUI application that automates creation of structured project directories for both marketing (BD) and work drives at Nabih Youssef & Associates. Copies template folder structures, replaces the `1 Marketing` subfolder in the work tree with a shortcut pointing back to the BD drive, and can generate A250 fee proposal documents from a Word template. Supports **Segment mode** for nesting sub-project numbers (`NNNNN.XX`) under an existing primary project folder.
 
 ---
 
@@ -19,7 +19,9 @@ MarketingFolderCreation/
 │   ├── delete_ops.py          # Folder delete (robocopy mirror → shutil fallback)
 │   └── shortcut_ops.py        # Windows .lnk shortcut creation via win32com
 └── utils/
-    └── validate.py            # Input path validation with PyQt6 error dialogs
+    ├── validate.py            # Input path validation with PyQt6 error dialogs
+    ├── segment.py             # Segment mode: year derivation + primary-folder matching
+    └── pathcheck.py           # Projects deepest path length to warn near Windows MAX_PATH
 ```
 
 ---
@@ -55,9 +57,41 @@ python app.py
 
 ---
 
+## Segment Mode
+
+Normal runs create one top-level folder per year: `V:\<year>\<name>` (BD) and `W:\<year>\<name>` (Work). A **segment** is a sub-project number like `12345.01`, `12345.10`, or `12345.BD` that should nest under the existing primary project instead of getting its own top-level folder.
+
+**How to use it:**
+
+1. Check **Create a Segment**.
+2. Type the full segment folder name (e.g. `12345.01 - Foundation Package`) in the project name field.
+3. The tool scans the BD Target (`V:\<year>`) for primary folders whose leading number matches (`12345`) and fills the **Primary Folder** dropdown:
+   - one match → auto-selected;
+   - several → pick one;
+   - none → an inline message appears and **Run** is blocked.
+4. A note under the target fields shows the full nested destination.
+5. **Run Folder Setup** creates `V:\<year>\<primary>\<segment>` and `W:\<year>\<primary>\<segment>`, running the same copy / `1 Marketing` swap / shortcut steps one level deeper.
+
+**Year is derived from the project number, not the current date.** The first two digits map to a year using a pivot on the current 2-digit year: `yy <= current` → `20yy`, otherwise `19yy` (e.g. `25045` → 2025, `02031` → 2002, `89045` → 1989). On name blur, the derived year replaces the `<year>` segment in both target-path fields, in normal and segment mode.
+
+**Primary folder** must already exist on the BD drive (the scan guarantees this). If it is missing under `W:\<year>`, the tool logs a warning and creates it during the copy — it does not block.
+
+### Path-length warning
+
+Segment nesting pushes the copied template subfolders deeper, closer to Windows' 260-character `MAX_PATH` limit. Before creating anything, the tool projects the deepest resulting path (target base + the deepest subpath inside the template) for each drive. If it exceeds `260 − PATH_LENGTH_MARGIN`, a **Yes/No** dialog warns you — it never blocks. Choosing **Yes** proceeds; **No** cancels so you can shorten the name first.
+
+**Adjusting how often the warning fires** — edit `PATH_LENGTH_MARGIN` in `config.py`:
+
+- The warning triggers when the projected path is longer than `260 − PATH_LENGTH_MARGIN`.
+- **Decrease** the buffer → higher trigger point → **fewer** warnings. Example: `40` warns only past ~220 characters.
+- **Increase** the buffer → **more** warnings, reserving more headroom for files added inside the folders later.
+- Default is `100` (warns past ~160 characters). The buffer is advisory only; you can always proceed.
+
+---
+
 ## Running Tests
 
-The test suite uses `pytest` and `pytest-qt`. All 47 tests run without real network drives — filesystem operations use `tmp_path` and win32com/robocopy calls are mocked where needed.
+The test suite uses `pytest` and `pytest-qt`. All tests run without real network drives — filesystem operations use `tmp_path` and win32com/robocopy calls are mocked where needed.
 
 **Run all tests:**
 
@@ -170,6 +204,9 @@ The project uses [GSD](https://github.com/anthropics/claude-code) for structured
 | What to change | Where |
 |----------------|-------|
 | Default drive paths | `config.py` |
+| Path-length warning buffer (`PATH_LENGTH_MARGIN`) | `config.py` |
+| Year-derivation / primary-folder matching | `utils/segment.py` |
+| Path-length projection logic | `utils/pathcheck.py` |
 | Folder copy flags (threads, retries) | `operations/copy_ops.py` |
 | Delete strategy | `operations/delete_ops.py` |
 | Shortcut target/icon | `operations/shortcut_ops.py` |
