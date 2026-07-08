@@ -109,3 +109,67 @@ class TestWorkflowIntegration:
         # After finish (success or cancel): run_btn must be re-enabled, cancel disabled
         assert window.run_btn.isEnabled(), "run_btn should be re-enabled after finish"
         assert not window.cancel_btn.isEnabled(), "cancel_btn should be disabled after finish"
+
+
+@pytest.mark.skipif(not _robocopy_available(), reason="robocopy not available")
+class TestSegmentWorkflow:
+
+    def _setup(self, tmp_path):
+        mkt = tmp_path / "marketing_template"; mkt.mkdir()
+        (mkt / "1 Marketing").mkdir()
+        (mkt / "SomeFile.txt").write_text("m")
+        work = tmp_path / "work_template"; work.mkdir()
+        (work / "1 Marketing").mkdir()
+        (work / "WorkFile.txt").write_text("w")
+        # Year roots + existing primary on BD only
+        bd_year = tmp_path / "V" / "2025"; bd_year.mkdir(parents=True)
+        (bd_year / "12345 - Main Project").mkdir()
+        work_year = tmp_path / "W" / "2025"; work_year.mkdir(parents=True)
+        return mkt, work, bd_year, work_year
+
+    def test_segment_creates_nested_structure(self, qtbot, tmp_path):
+        from app import FolderSetupApp
+        mkt, work, bd_year, work_year = self._setup(tmp_path)
+        window = FolderSetupApp()
+        qtbot.addWidget(window)
+        window.show()
+
+        window.path_fields["marketing_template"].setText(str(mkt))
+        window.path_fields["work_template"].setText(str(work))
+        window.path_fields["bd_target"].setText(str(bd_year))
+        window.path_fields["work_target"].setText(str(work_year))
+        window.segment_checkbox.setChecked(True)
+        window.project_name_field.setText("12345.01 - Foundation")
+        window._scan_primaries()
+        assert window.primary_combo.currentText() == "12345 - Main Project"
+
+        with patch("app.pyperclip.copy"):
+            qtbot.mouseClick(window.run_btn, Qt.MouseButton.LeftButton)
+            with qtbot.waitSignal(window.worker.finished, timeout=30000) as blocker:
+                pass
+
+        assert blocker.args[0] is True
+        seg_bd = bd_year / "12345 - Main Project" / "12345.01 - Foundation"
+        seg_work = work_year / "12345 - Main Project" / "12345.01 - Foundation"
+        assert seg_bd.exists()
+        assert seg_work.exists()
+        assert not (seg_work / "1 Marketing").exists()
+        assert (seg_work / "1 Marketing.lnk").exists()
+
+    def test_run_blocked_when_no_primary(self, qtbot, tmp_path):
+        from app import FolderSetupApp
+        mkt, work, bd_year, work_year = self._setup(tmp_path)
+        window = FolderSetupApp()
+        qtbot.addWidget(window)
+        window.show()
+        window.path_fields["marketing_template"].setText(str(mkt))
+        window.path_fields["work_template"].setText(str(work))
+        window.path_fields["bd_target"].setText(str(bd_year))
+        window.path_fields["work_target"].setText(str(work_year))
+        window.segment_checkbox.setChecked(True)
+        window.project_name_field.setText("77777.01 - NoMatch")
+        window._scan_primaries()
+
+        qtbot.mouseClick(window.run_btn, Qt.MouseButton.LeftButton)
+        assert window.worker is None  # worker never started
+        assert window.primary_hint.text() != ""

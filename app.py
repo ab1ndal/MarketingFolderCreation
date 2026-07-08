@@ -282,11 +282,21 @@ class FolderSetupApp(QMainWindow):
         if not validate_paths(paths, self.write_log):
             return
 
+        primary = None
+        if self.segment_checkbox.isChecked():
+            primary = self.primary_combo.currentText().strip()
+            if not primary:
+                self.primary_hint.setText(
+                    "Select a primary folder before running (no matching primary found)."
+                )
+                self.write_log("Segment mode: no primary folder selected.", "error")
+                return
+
         self.run_btn.setEnabled(False)
         self.cancel_btn.setEnabled(True)
         self.progress_bar.setValue(0)
 
-        self.worker = WorkflowWorker(project_name=name, paths=paths, parent=self)
+        self.worker = WorkflowWorker(project_name=name, paths=paths, primary=primary, parent=self)
         self.worker.progress.connect(self._update_progress)
         self.worker.log_message.connect(self.write_log)
         self.worker.finished.connect(self._on_workflow_finished)
@@ -303,10 +313,11 @@ class FolderSetupApp(QMainWindow):
         self.cancel_btn.setEnabled(False)
         self.setWindowTitle("Project Folder Setup Tool")
         if success:
-            work_target = (
-                Path(self.path_fields["work_target"].text().strip())
-                / self.project_name_field.text().strip()
-            )
+            parts = [self.path_fields["work_target"].text().strip()]
+            if self.segment_checkbox.isChecked() and self.primary_combo.currentText().strip():
+                parts.append(self.primary_combo.currentText().strip())
+            parts.append(self.project_name_field.text().strip())
+            work_target = Path(*parts)
             pyperclip.copy(str(work_target))
             self.write_log(f"Copied Work Drive folder link to clipboard: {work_target}", "success")
             self.write_log("Project setup completed successfully.", "success")
