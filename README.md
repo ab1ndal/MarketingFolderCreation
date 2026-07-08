@@ -211,15 +211,27 @@ The project uses [GSD](https://github.com/anthropics/claude-code) for structured
 | Delete strategy | `operations/delete_ops.py` |
 | Shortcut target/icon | `operations/shortcut_ops.py` |
 | Input validation rules | `utils/validate.py` |
-| A250 form fields | `app.py` → `_open_a250_dialog()` and `_generate_a250()` |
+| A250 form fields | `app.py` → `A250_FIELD_GROUPS` (drives both the form and the preview) and `_open_a250_form()` |
+| A250 composite / date / fee logic | `utils/a250_context.py` → `build_a250_context()` (shared by preview and generation) |
+| A250 live preview pane | `app.py` → `_render_preview_html()` / `_refresh_preview()` |
 | A250 template layout | `templates/A250.docx` (edit in Word; field names use `{{ variable }}` syntax) |
 | GUI layout | `app.py` → `FolderSetupApp.__init__()` |
 
+**A250 live preview:** The form is a split pane — fields on the left, a read-only
+preview on the right that updates ~300 ms after you stop typing. It shows every field's
+resolved value plus the derived composites (`requested_by`, `invoice_to`, `client_signed`)
+and the formatted `fee`, so you can see exactly what the document will contain before
+generating it. Plain fields update via change signals; the Quill rich-text editors push
+changes through a `QWebChannel` bridge (`utils/web_editor.py` + `assets/editor.html`).
+
 **Adding a new A250 field:**
 
-1. Add a `QLineEdit` in `_open_a250_dialog()` in `app.py`
+1. Add a `(key, "Label")` entry to the relevant group in `A250_FIELD_GROUPS` in `app.py`
+   (a `QLineEdit` unless the key is in `COMBO_FIELDS` / `MULTILINE_FIELDS` / `RICH_TEXT_FIELDS`)
 2. Add the matching `{{ field_name }}` placeholder to `templates/A250.docx`
 3. Add a test in `tests/test_a250_generation.py` verifying the field appears in the render call
+4. The field appears in the live preview automatically — the preview reads the same
+   `A250_FIELD_GROUPS` list that builds the form
 
 **Adding a new operation step to the workflow:**
 
