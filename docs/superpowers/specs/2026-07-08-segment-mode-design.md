@@ -115,9 +115,16 @@ reused on the Work drive.
 - Normal mode (`primary is None`): unchanged.
 
 Everything else is identical: parallel BD + Work template copy, delete
-`1 Marketing`, create shortcut. `robocopy` creates the intermediate `<primary>`
-level on the Work drive automatically if it is missing (same name reused → the
-two drives stay consistent). No warning is shown for this case.
+`1 Marketing`, create shortcut.
+
+**Missing primary on Work drive:** the V: scan guarantees the primary exists on
+the BD drive (0 matches blocks Run, so a primary is never created on V:). The
+primary is expected to already exist under `W:\<year>` as well. Before starting
+the copy, the worker checks `W:\<year>\<primary>`; if missing, it emits a
+**warning** log line (`Primary <primary> not found on Work drive; it will be
+created`) and continues — `robocopy` creates the intermediate `<primary>` level
+using the same name, keeping the two drives consistent. Run is NOT blocked in
+this case.
 
 ---
 
@@ -137,8 +144,6 @@ two drives stay consistent). No warning is shown for this case.
 
 - A250 fee-proposal dialog — unaffected.
 - Renaming / moving existing folders — this only creates new ones.
-- Validating that the primary folder also exists on the Work drive before running
-  (robocopy handles creation).
 
 ---
 
