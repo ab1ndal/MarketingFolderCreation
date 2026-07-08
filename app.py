@@ -27,6 +27,7 @@ from utils.pathcheck import projected_path_len, WINDOWS_MAX_PATH
 from utils.richtext_utils import html_to_richtext
 from workers import WorkflowWorker
 from utils.formatting import format_number
+from utils.a250_context import build_a250_context
 
 
 def _resource_path(relative: str) -> Path:
@@ -509,45 +510,39 @@ class FolderSetupApp(QMainWindow):
 
         dialog.exec()
 
+    def _collect_a250_raw(self, a250_vars: dict, use_cache: bool = False) -> dict:
+        """Gather raw string values from every A250 widget.
+
+        Rich-text fields return HTML. When use_cache is True, rich-text uses the
+        last value pushed by the Quill bridge (cheap, no JS round-trip), falling
+        back to a synchronous pull if the cache is empty.
+        """
+        raw = {}
+        for key, w in a250_vars.items():
+            if isinstance(w, QComboBox):
+                raw[key] = w.currentText()
+            elif isinstance(w, WebRichTextEditor):
+                if use_cache:
+                    html = w.cached_html()
+                    raw[key] = html if html else w.get_html_sync()
+                else:
+                    raw[key] = w.get_html_sync()
+            elif isinstance(w, QTextEdit):
+                raw[key] = w.toPlainText()
+            else:
+                raw[key] = w.text()
+        return raw
+
     def _generate_a250(self, a250_vars: dict):
         try:
-            def _get_val(w):
-                if isinstance(w, QComboBox):
-                    return w.currentText()
-                elif isinstance(w, WebRichTextEditor):
-                    return html_to_richtext(w.get_html_sync())
-                elif isinstance(w, QTextEdit):
-                    return w.toPlainText()
-                else:
-                    return w.text()
+            raw = self._collect_a250_raw(a250_vars)
+            data = build_a250_context(raw)
 
-            data = {k: _get_val(v) for k, v in a250_vars.items()}
-            data["today"] = datetime.now().strftime("%B %#d, %Y")
-            data["today_2"] = datetime.now().strftime("%m/%d/%Y")
-            data["current_date"] = data["today"]
+            # Convert rich-text HTML fields to docxtpl RichText for the document
+            for key, w in a250_vars.items():
+                if isinstance(w, WebRichTextEditor):
+                    data[key] = html_to_richtext(raw[key])
 
-            # --- Composite: requested_by ---
-            name     = data.get("client_name", "").strip()
-            license  = data.get("client_license", "").strip()
-            title    = data.get("client_title", "").strip()
-            client   = data.get("client", "").strip()
-
-            licence_sep = ", " if license else ""
-            title_sep = "\n\n" if len(name) + len(license) + len(title) > 60 else "\n"
-            data["requested_by"] = f"{name}{licence_sep}{license}{title_sep}{title}\n{client}"
-
-            # --- Formatting Fees ---
-            data["fee"] = format_number(f"{data.get('fee', '')}")
-
-            # --- Composite: client_signed ---
-            title_sep2 = "\n" if len(name) + len(title) > 40 else ", "
-            data["client_signed"] = f"{name}{title_sep2}{title}"
-
-            # --- Composite: invoice_to ---
-            invoice_custom = data.get("invoice_to", "").strip()
-            if not invoice_custom:
-                data["invoice_to"] = data["requested_by"]
-            # else leave data["invoice_to"] as the custom text the user entered
             template_path = _resource_path("templates/A250.docx")
             if data.get("file_name"):
                 data["file_name"] = f"{data.get('file_name')}.docx"
