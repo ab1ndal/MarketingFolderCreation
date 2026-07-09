@@ -55,6 +55,12 @@ def _a250_display_filename(raw: dict) -> str:
     return f"{stem}.docx"
 
 
+# Fields edited as rich text (WebRichTextEditor) in the A250 form. Shared
+# between the form-widget setup and the renderer so a future field can't
+# diverge between the two.
+RICH_TEXT_FIELDS = {"project_description", "detailed_scope"}
+
+
 def render_a250_docx(raw: dict, out_path) -> None:
     """Render the real A250 docx from raw field values into out_path.
 
@@ -64,7 +70,7 @@ def render_a250_docx(raw: dict, out_path) -> None:
     """
     data = build_a250_context(raw)
     data["file_name"] = _a250_display_filename(raw)
-    for key in ("project_description", "detailed_scope"):
+    for key in RICH_TEXT_FIELDS:
         data[key] = html_to_richtext(raw.get(key, ""))
     template_path = _resource_path("templates/A250.docx")
     doc = DocxTemplate(template_path)
@@ -529,7 +535,6 @@ class FolderSetupApp(QMainWindow):
             "fee_type": FEE_TYPE_OPTIONS,
         }
         MULTILINE_FIELDS = {"project_address", "client_address", "invoice_to"}
-        RICH_TEXT_FIELDS = {"project_description", "detailed_scope"}
 
         for section_title, field_pairs in A250_FIELD_GROUPS:
             group_box = QGroupBox(section_title)
@@ -628,17 +633,16 @@ class FolderSetupApp(QMainWindow):
 
             # Clean up the worker + thread when the dialog closes.
             def _cleanup():
-                # worker.shutdown() touches the Word COM object + CoUninitialize,
-                # both of which live on the worker thread. Marshal the call there
-                # via a blocking queued invocation (worker's event loop is still
-                # running until thread.quit() below) instead of calling it
-                # directly from the GUI thread, which would raise a
-                # wrong-apartment COM error and leave WINWORD.EXE running.
+                # Ask the worker to shut down on its own thread (non-blocking): it
+                # will run after any in-flight render returns. Then bound the wait
+                # so a hung Word COM call can't freeze the GUI thread on close.
                 QMetaObject.invokeMethod(
-                    worker, "shutdown", Qt.ConnectionType.BlockingQueuedConnection
+                    worker, "shutdown", Qt.ConnectionType.QueuedConnection
                 )
                 thread.quit()
-                thread.wait(5000)
+                if not thread.wait(6000):
+                    thread.terminate()
+                    thread.wait()
             dialog.finished.connect(lambda _=None: _cleanup())
 
         # ---- Buttons ----

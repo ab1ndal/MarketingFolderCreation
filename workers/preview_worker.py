@@ -51,28 +51,36 @@ class A250PreviewWorker(QObject):
             return
         self._run(raw)
 
-    def _drain_pending(self):
-        if self._pending is not None and not self._busy:
-            raw, self._pending = self._pending, None
-            self._run(raw)
-
     def _run(self, raw: dict):
         self._busy = True
         try:
-            if self._render_fn is None:
-                from app import render_a250_docx  # lazy — breaks import cycle
-                self._render_fn = render_a250_docx
-            docx_path = self._tmp_dir / "preview.docx"
-            self._toggle = not self._toggle
-            pdf_path = self._tmp_dir / ("preview_a.pdf" if self._toggle else "preview_b.pdf")
-            self._render_fn(raw, docx_path)
-            self._convert(docx_path, pdf_path)
-            self.finished.emit(str(pdf_path))
-        except Exception as e:
-            self.failed.emit(str(e))
+            while True:
+                try:
+                    if self._render_fn is None:
+                        from app import render_a250_docx  # lazy — breaks import cycle
+                        self._render_fn = render_a250_docx
+                    docx_path = self._tmp_dir / "preview.docx"
+                    self._toggle = not self._toggle
+                    pdf_path = self._tmp_dir / ("preview_a.pdf" if self._toggle else "preview_b.pdf")
+                    self._render_fn(raw, docx_path)
+                    self._convert(docx_path, pdf_path)
+                    self.finished.emit(str(pdf_path))
+                except Exception as e:
+                    self.failed.emit(str(e))
+                    # The Word instance (if any) may be dead/disconnected after a
+                    # failure — discard it so the next render recreates one instead
+                    # of failing forever against a stale COM handle.
+                    if self._word is not None:
+                        try:
+                            self._word.Quit()
+                        except Exception:
+                            pass
+                        self._word = None
+                if self._pending is None:
+                    break
+                raw, self._pending = self._pending, None
         finally:
             self._busy = False
-            self._drain_pending()
 
     def _convert(self, docx_path: Path, pdf_path: Path):
         if self._converter is not None:
