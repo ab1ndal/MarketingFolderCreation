@@ -38,7 +38,7 @@ class A250PreviewWorker(QObject):
         # "file in use" / PermissionError (Errno 13). A unique dir per worker
         # isolates this session from any other process's stale locks.
         self._tmp_dir = Path(tempfile.mkdtemp(prefix="a250_preview_"))
-        self._toggle = False            # ping-pong between two pdf paths
+        self._seq = 0                   # rotates temp filenames (mod 3)
 
     @pyqtSlot()
     def setup(self):
@@ -60,32 +60,50 @@ class A250PreviewWorker(QObject):
         self._busy = True
         try:
             while True:
-                try:
-                    if self._render_fn is None:
-                        from app import render_a250_docx  # lazy — breaks import cycle
-                        self._render_fn = render_a250_docx
-                    docx_path = self._tmp_dir / "preview.docx"
-                    self._toggle = not self._toggle
-                    pdf_path = self._tmp_dir / ("preview_a.pdf" if self._toggle else "preview_b.pdf")
-                    self._render_fn(raw, docx_path)
-                    self._convert(docx_path, pdf_path)
-                    self.finished.emit(str(pdf_path))
-                except Exception as e:
-                    self.failed.emit(str(e))
-                    # The Word instance (if any) may be dead/disconnected after a
-                    # failure — discard it so the next render recreates one instead
-                    # of failing forever against a stale COM handle.
-                    if self._word is not None:
-                        try:
-                            self._word.Quit()
-                        except Exception:
-                            pass
-                        self._word = None
+                self._render_once(raw)
                 if self._pending is None:
                     break
                 raw, self._pending = self._pending, None
         finally:
             self._busy = False
+
+    def _render_once(self, raw: dict) -> None:
+        """Render+convert one request, retrying once on failure.
+
+        A persistent hidden Word instance can die mid-session (crashed, killed,
+        or "interface is unknown") and leave its docx/pdf locked. On failure we
+        discard the (possibly dead) instance and retry with a rotated filename
+        slot, so a stale lock from the dead instance can't block the retry.
+        Filenames rotate mod 3 so neither attempt reuses the slot currently held
+        open by the on-screen QPdfView.
+        """
+        if self._render_fn is None:
+            from app import render_a250_docx  # lazy — breaks import cycle
+            self._render_fn = render_a250_docx
+
+        last_err = None
+        for _attempt in range(2):
+            self._seq += 1
+            slot = self._seq % 3
+            docx_path = self._tmp_dir / f"preview_{slot}.docx"
+            pdf_path = self._tmp_dir / f"preview_{slot}.pdf"
+            try:
+                self._render_fn(raw, docx_path)
+                self._convert(docx_path, pdf_path)
+                self.finished.emit(str(pdf_path))
+                return
+            except Exception as e:
+                last_err = e
+                self._discard_word()   # dead/locked → recreate + rotate on retry
+        self.failed.emit(str(last_err))
+
+    def _discard_word(self) -> None:
+        if self._word is not None:
+            try:
+                self._word.Quit()
+            except Exception:
+                pass
+            self._word = None
 
     def _convert(self, docx_path: Path, pdf_path: Path):
         if self._converter is not None:
@@ -97,12 +115,7 @@ class A250PreviewWorker(QObject):
 
     @pyqtSlot()
     def shutdown(self):
-        if self._word is not None:
-            try:
-                self._word.Quit()
-            except Exception:
-                pass
-            self._word = None
+        self._discard_word()
         try:
             import pythoncom
             pythoncom.CoUninitialize()

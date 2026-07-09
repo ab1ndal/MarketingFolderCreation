@@ -448,3 +448,13 @@ def test_render_a250_docx_file_name_fallback_when_blank(tmp_path):
     render_a250_docx({"project_title": "Acme Tower"}, out)
     xml = zipfile.ZipFile(out).read("word/document.xml").decode("utf-8")
     assert "A250_Acme Tower.docx" in xml
+
+
+def test_display_filename_strips_typed_extension():
+    """Typing '.docx' in the File Name field must not yield 'X.docx.docx'."""
+    from app import _a250_display_filename
+    assert _a250_display_filename({"file_name": "MyProj"}) == "MyProj.docx"
+    assert _a250_display_filename({"file_name": "MyProj.docx"}) == "MyProj.docx"
+    assert _a250_display_filename({"file_name": "MyProj.DOCX"}) == "MyProj.docx"
+    assert _a250_display_filename({"file_name": "  Spaced  "}) == "Spaced.docx"
+    assert _a250_display_filename({"project_title": "T"}) == "A250_T.docx"  # blank -> fallback

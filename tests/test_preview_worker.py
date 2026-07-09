@@ -88,31 +88,62 @@ def test_request_render_queues_while_busy(qapp):
     assert rendered == []                          # nothing ran while busy
 
 
-def test_failed_render_resets_busy_and_drains_pending(qapp):
-    """A raising render_fn should still emit `failed`, reset `_busy`, and go
-    on to drain any request that got queued in the meantime (real-Word path
-    is a no-op here since `_word` is never set when render_fn is injected)."""
+def test_transient_failure_retries_and_succeeds(qapp):
+    """A single failure (e.g. a Word instance that just died) must NOT surface
+    to the user: the worker discards the instance and retries once with a
+    rotated filename slot, and only that retry's result is emitted."""
+    failures, finished = [], []
+    docx_paths = []
+    calls = {"n": 0}
+
+    def rec_render(raw, out_path):
+        docx_paths.append(out_path.name)
+
+    def flaky_convert(docx_path, pdf_path):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("interface is unknown")   # first attempt dies
+
+    w = A250PreviewWorker(render_fn=rec_render, converter=flaky_convert)
+    w.failed.connect(lambda m: failures.append(m))
+    w.finished.connect(lambda p: finished.append(p))
+    w._run({"project_title": "x"})
+
+    assert failures == []                       # user never sees the transient error
+    assert len(finished) == 1                   # retry succeeded and emitted
+    assert docx_paths[0] != docx_paths[1]       # retry used a different slot
+    assert w._busy is False
+
+
+def test_both_attempts_fail_reports_once(qapp):
+    """If both attempts fail, exactly one `failed` is emitted with the last
+    error, and the loop still resets `_busy` and drains any pending request."""
     failures = []
-    rendered = []
-    first_call = True
+    convert_calls = {"n": 0}
 
-    def flaky_render(raw, out_path):
-        nonlocal first_call
-        if first_call:
-            first_call = False
-            w._pending = {"project_title": "retry"}
-            raise RuntimeError("boom")
-        rendered.append(raw["project_title"])
+    def rec_render(raw, out_path):
+        pass
 
-    def fake_convert(docx_path, pdf_path):
-        return None
+    def always_fail(docx_path, pdf_path):
+        convert_calls["n"] += 1
+        raise RuntimeError("boom")
 
-    w = A250PreviewWorker(render_fn=flaky_render, converter=fake_convert)
-    w.failed.connect(lambda msg: failures.append(msg))
-    w._run({"project_title": "first"})
+    w = A250PreviewWorker(render_fn=rec_render, converter=always_fail)
+    w.failed.connect(lambda m: failures.append(m))
+    w._run({"project_title": "x"})
 
-    assert failures == ["boom"]
-    assert rendered == ["retry"]       # drained the queued request after the failure
+    assert failures == ["boom"]                 # one report, not per-attempt
+    assert convert_calls["n"] == 2              # tried twice before giving up
     assert w._pending is None
     assert w._busy is False
-    assert w._word is None             # never set on the injected-converter path
+
+
+def test_consecutive_renders_use_different_pdf_slots(qapp):
+    """Successive successful renders must emit different PDF paths so a new
+    render never overwrites the file the on-screen QPdfView still holds open."""
+    finished = []
+    w = A250PreviewWorker(render_fn=lambda r, o: None, converter=lambda d, p: None)
+    w.finished.connect(lambda p: finished.append(p))
+    w._run({"project_title": "a"})
+    w._run({"project_title": "b"})
+    assert finished[0] != finished[1]
