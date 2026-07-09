@@ -7,6 +7,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pywintypes
+
+# HRESULT for "The object invoked has disconnected from its clients."
+_RPC_E_DISCONNECTED = -2147417848
+
 # wdExportFormatPDF
 _WD_EXPORT_FORMAT_PDF = 17
 
@@ -63,6 +68,12 @@ def docx_to_pdf(word_app, docx_path: Path, pdf_path: Path) -> None:
     finally:
         try:
             doc.Close(False)
-        except Exception:
-            # Word COM can disconnect after export; the PDF is already written
-            pass
+        except pywintypes.com_error as e:
+            # Known Word COM quirk: after ExportAsFixedFormat, the document's
+            # COM proxy can report itself disconnected from its clients even
+            # though the export (and Word's internal close) already
+            # completed successfully. The PDF is written by this point, so
+            # this specific, benign error is expected and safe to ignore.
+            # Any other com_error is a real failure and must propagate.
+            if e.args[0] != _RPC_E_DISCONNECTED:
+                raise

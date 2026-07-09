@@ -1,5 +1,4 @@
 import pytest
-from pathlib import Path
 from utils.docx_pdf import word_available, create_word, docx_to_pdf
 
 
