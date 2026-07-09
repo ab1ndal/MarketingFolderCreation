@@ -65,7 +65,10 @@ class A250PreviewPane(QWidget):
 
     def _on_status(self, status) -> None:
         if status == QPdfDocument.Status.Ready:
+            self._has_pdf = True
             self._view.verticalScrollBar().setValue(self._pending_scroll)
+        elif status == QPdfDocument.Status.Error:
+            self._has_pdf = False
 
     def show_pdf(self, path: str) -> None:
         self._pending_scroll = self._view.verticalScrollBar().value()
@@ -73,7 +76,6 @@ class A250PreviewPane(QWidget):
         self._error.hide()
         self._view.show()
         self._doc.load(path)
-        self._has_pdf = True
 
     def set_updating(self, on: bool) -> None:
         self._updating.setVisible(on)
