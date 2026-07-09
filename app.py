@@ -40,6 +40,18 @@ def _resource_path(relative: str) -> Path:
     return base / relative
 
 
+def _a250_display_filename(raw: dict) -> str:
+    """Resolve the `<stem>.docx` display/output filename from raw field values.
+
+    Single source of truth for the file_name stem, based on the raw (un-suffixed)
+    value so it can't be double-suffixed. Used both for the {{file_name}} template
+    variable (rendered by render_a250_docx) and for the saved output path
+    (_generate_a250), so the footer text and the actual saved filename always match.
+    """
+    stem = raw.get("file_name") or f"A250_{raw.get('project_title', 'output')}"
+    return f"{stem}.docx"
+
+
 def render_a250_docx(raw: dict, out_path) -> None:
     """Render the real A250 docx from raw field values into out_path.
 
@@ -48,6 +60,7 @@ def render_a250_docx(raw: dict, out_path) -> None:
     save location - the caller handles that.
     """
     data = build_a250_context(raw)
+    data["file_name"] = _a250_display_filename(raw)
     for key in ("project_description", "detailed_scope"):
         data[key] = html_to_richtext(raw.get(key, ""))
     template_path = _resource_path("templates/A250.docx")
@@ -653,10 +666,7 @@ class FolderSetupApp(QMainWindow):
     def _generate_a250(self, a250_vars: dict):
         try:
             raw = self._collect_a250_raw(a250_vars)
-            if raw.get("file_name"):
-                file_name = f"{raw.get('file_name')}.docx"
-            else:
-                file_name = f"A250_{raw.get('project_title', 'output')}.docx"
+            file_name = _a250_display_filename(raw)
             save_loc = raw.get("save_location", "").strip()
             output_path = (Path(save_loc) / file_name) if save_loc else (Path.cwd() / file_name)
             render_a250_docx(raw, output_path)

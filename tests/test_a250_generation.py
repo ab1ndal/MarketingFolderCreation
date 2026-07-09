@@ -422,3 +422,29 @@ def test_render_a250_docx_substitutes_fields(tmp_path):
     xml = zipfile.ZipFile(out).read("word/document.xml").decode("utf-8")
     assert "Acme Tower" in xml
     assert "5,000.00" in xml   # fee formatted by build_a250_context
+
+
+def test_render_a250_docx_file_name_includes_docx_suffix(tmp_path):
+    """{{file_name}} in the footer must render with the .docx suffix (regression:
+    the old _generate_a250 set data["file_name"] = f"{stem}.docx" before render;
+    the shared render path must reproduce that so preview == generated output."""
+    from app import render_a250_docx
+    import zipfile
+
+    out = tmp_path / "out.docx"
+    render_a250_docx({"file_name": "MyProj", "project_title": "Acme Tower"}, out)
+    xml = zipfile.ZipFile(out).read("word/document.xml").decode("utf-8")
+    assert "MyProj.docx" in xml
+    assert "MyProj.docx.docx" not in xml
+
+
+def test_render_a250_docx_file_name_fallback_when_blank(tmp_path):
+    """When no file_name is provided, {{file_name}} falls back to A250_<title>.docx,
+    matching the fallback used for the saved output filename."""
+    from app import render_a250_docx
+    import zipfile
+
+    out = tmp_path / "out.docx"
+    render_a250_docx({"project_title": "Acme Tower"}, out)
+    xml = zipfile.ZipFile(out).read("word/document.xml").decode("utf-8")
+    assert "A250_Acme Tower.docx" in xml
