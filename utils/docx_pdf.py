@@ -9,9 +9,6 @@ from pathlib import Path
 
 import pywintypes
 
-# HRESULT for "The object invoked has disconnected from its clients."
-_RPC_E_DISCONNECTED = -2147417848
-
 # wdExportFormatPDF
 _WD_EXPORT_FORMAT_PDF = 17
 
@@ -54,26 +51,29 @@ def create_word():
 
 
 def docx_to_pdf(word_app, docx_path: Path, pdf_path: Path) -> None:
-    """Convert docx_path to pdf_path using an already-open Word instance."""
-    doc = word_app.Documents.Open(
+    """Convert docx_path to pdf_path using an already-open Word instance.
+
+    Closes the document via ``word_app.ActiveDocument.Close`` rather than the
+    handle returned by ``Documents.Open``. That returned handle's COM proxy is
+    disconnected after ``ExportAsFixedFormat`` — calling ``.Close()`` on it
+    raises RPC_E_DISCONNECTED and the document is NEVER actually closed, so a
+    persistent Word instance keeps the file locked and the next render's
+    overwrite fails with PermissionError (Errno 13). Closing the ActiveDocument
+    closes it cleanly (Documents.Count returns to 0) and releases the lock, so
+    a fixed temp filename can be reused render after render.
+    """
+    word_app.Documents.Open(
         str(Path(docx_path).resolve()),
         ReadOnly=True,
         AddToRecentFiles=False,
     )
     try:
-        doc.ExportAsFixedFormat(
+        word_app.ActiveDocument.ExportAsFixedFormat(
             OutputFileName=str(Path(pdf_path).resolve()),
             ExportFormat=_WD_EXPORT_FORMAT_PDF,
         )
     finally:
         try:
-            doc.Close(False)
-        except pywintypes.com_error as e:
-            # Known Word COM quirk: after ExportAsFixedFormat, the document's
-            # COM proxy can report itself disconnected from its clients even
-            # though the export (and Word's internal close) already
-            # completed successfully. The PDF is written by this point, so
-            # this specific, benign error is expected and safe to ignore.
-            # Any other com_error is a real failure and must propagate.
-            if e.args[0] != _RPC_E_DISCONNECTED:
-                raise
+            word_app.ActiveDocument.Close(False)
+        except pywintypes.com_error:
+            pass
