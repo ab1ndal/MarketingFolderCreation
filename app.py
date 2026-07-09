@@ -40,6 +40,22 @@ def _resource_path(relative: str) -> Path:
     return base / relative
 
 
+def render_a250_docx(raw: dict, out_path) -> None:
+    """Render the real A250 docx from raw field values into out_path.
+
+    Shared by the live preview and the Generate button so the preview shows
+    exactly what generation produces. Does not resolve output filename or
+    save location - the caller handles that.
+    """
+    data = build_a250_context(raw)
+    for key in ("project_description", "detailed_scope"):
+        data[key] = html_to_richtext(raw.get(key, ""))
+    template_path = _resource_path("templates/A250.docx")
+    doc = DocxTemplate(template_path)
+    doc.render(data)
+    doc.save(Path(out_path))
+
+
 A250_FIELD_GROUPS = [
     ("Project Info", [
         ("project_title", "Project Title"),
@@ -637,23 +653,13 @@ class FolderSetupApp(QMainWindow):
     def _generate_a250(self, a250_vars: dict):
         try:
             raw = self._collect_a250_raw(a250_vars)
-            data = build_a250_context(raw)
-
-            # Convert rich-text HTML fields to docxtpl RichText for the document
-            for key, w in a250_vars.items():
-                if isinstance(w, WebRichTextEditor):
-                    data[key] = html_to_richtext(raw[key])
-
-            template_path = _resource_path("templates/A250.docx")
-            if data.get("file_name"):
-                data["file_name"] = f"{data.get('file_name')}.docx"
+            if raw.get("file_name"):
+                file_name = f"{raw.get('file_name')}.docx"
             else:
-                data["file_name"] = f"A250_{data.get('project_title', 'output')}.docx"
-            save_loc = data.get("save_location", "").strip()
-            output_path = (Path(save_loc) / data["file_name"]) if save_loc else (Path.cwd() / data["file_name"])
-            doc = DocxTemplate(template_path)
-            doc.render(data)
-            doc.save(output_path)
+                file_name = f"A250_{raw.get('project_title', 'output')}.docx"
+            save_loc = raw.get("save_location", "").strip()
+            output_path = (Path(save_loc) / file_name) if save_loc else (Path.cwd() / file_name)
+            render_a250_docx(raw, output_path)
             subprocess.Popen(f'explorer /select,"{output_path}"', shell=True)
             self.write_log(f"A250 generated: {output_path}", "success")
         except Exception as e:

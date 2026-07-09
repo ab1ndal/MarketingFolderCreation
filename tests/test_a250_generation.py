@@ -407,3 +407,18 @@ class TestA250TemplateRegression:
         assert "NYA-2026-001" in combined, (
             "nya_project_code value 'NYA-2026-001' not found in rendered document tables"
         )
+
+
+def test_render_a250_docx_substitutes_fields(tmp_path):
+    from app import render_a250_docx
+    out = tmp_path / "out.docx"
+    render_a250_docx(
+        {"project_title": "Acme Tower", "fee": "5000", "client": "Acme Corp"},
+        out,
+    )
+    assert out.exists()
+    # Reopen and confirm the substituted text is present in the document.
+    import zipfile
+    xml = zipfile.ZipFile(out).read("word/document.xml").decode("utf-8")
+    assert "Acme Tower" in xml
+    assert "5,000.00" in xml   # fee formatted by build_a250_context
