@@ -51,7 +51,10 @@ def _a250_display_filename(raw: dict) -> str:
     variable (rendered by render_a250_docx) and for the saved output path
     (_generate_a250), so the footer text and the actual saved filename always match.
     """
-    stem = raw.get("file_name") or f"A250_{raw.get('project_title', 'output')}"
+    stem = raw.get("file_name", "").strip() or f"A250_{raw.get('project_title', 'output')}"
+    # Tolerate a user who types the extension anyway — avoid "name.docx.docx".
+    if stem.lower().endswith(".docx"):
+        stem = stem[:-5]
     return f"{stem}.docx"
 
 
@@ -558,6 +561,8 @@ class FolderSetupApp(QMainWindow):
                     form.addRow(label, widget)
                 else:
                     widget = QLineEdit()
+                    if key == "file_name":
+                        widget.setPlaceholderText("no extension needed — .docx is added automatically")
                     form.addRow(label, widget)
                 a250_vars[key] = widget
             container_layout.addWidget(group_box)
@@ -567,9 +572,17 @@ class FolderSetupApp(QMainWindow):
         # ---- Live preview: worker thread + debounced refresh ----
         self._preview_thread = None
         self._preview_worker = None
-        if not word_available():
-            preview.show_unavailable("MS Word required for preview")
-        else:
+        # Show the rendering indicator immediately so opening the dialog never
+        # looks frozen. The Word-availability probe (~2-3s cold start) and the
+        # first render are deferred to the next event-loop turn, so they run
+        # AFTER the dialog has painted with this indicator.
+        preview.show_rendering()
+
+        def _init_preview():
+            if not word_available():
+                preview.show_unavailable("MS Word required for preview")
+                return
+
             # Signal used to hand a raw dict to the worker thread (queued).
             class _Emitter(QObject):
                 request = pyqtSignal(dict)
@@ -631,9 +644,7 @@ class FolderSetupApp(QMainWindow):
                 else:
                     widget.textChanged.connect(schedule)
 
-            # Initial render on open: show a rendering state (covers Word cold-start,
-            # ~2-3s) so the pane is never a blank white void, then fire.
-            preview.show_rendering()
+            # Initial render on open (pane already shows the rendering state).
             _fire()
 
             # Clean up the worker + thread when the dialog closes.
@@ -649,6 +660,9 @@ class FolderSetupApp(QMainWindow):
                     thread.terminate()
                     thread.wait()
             dialog.finished.connect(lambda _=None: _cleanup())
+
+        # Defer to the next event-loop turn so the dialog paints first.
+        QTimer.singleShot(0, _init_preview)
 
         # ---- Buttons ----
         btn_box = QDialogButtonBox()
