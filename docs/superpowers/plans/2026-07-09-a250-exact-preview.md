@@ -825,36 +825,53 @@ git commit -m "feat(a250): live exact-document PDF preview in dialog"
 
 ---
 
-### Task 6: PyInstaller packaging (`app.spec`)
+### Task 6: PyInstaller packaging (`ClickFolder_v2.spec`)
 
 **Files:**
-- Modify: `app.spec`
+- Modify: `ClickFolder_v2.spec`  ← the REAL/current build spec (confirmed by user + git). NOT `app.spec` (that is a stub with `datas=[]`; the prior A250 commit `7dcf259` mistakenly added `PyQt6.QtWebChannel` to `app.spec` instead of here, so this spec is currently missing QtWebChannel too).
 
 **Interfaces:** none (build config only).
 
-- [ ] **Step 1: Add QtPdf modules to hiddenimports**
+- [ ] **Step 1: Add the missing hiddenimports to `ClickFolder_v2.spec`**
 
-Edit `app.spec` `hiddenimports` list:
-
+The current `hiddenimports` in `ClickFolder_v2.spec` is:
 ```python
-    hiddenimports=['PyQt6.QtWebChannel', 'PyQt6.QtPdf', 'PyQt6.QtPdfWidgets', 'win32com', 'pythoncom'],
+    hiddenimports=[
+        'win32com.shell',
+        'win32com.shell.shell',
+        'win32timezone',
+    ],
 ```
+Add `PyQt6.QtWebChannel` (Quill editor bridge — currently missing from the real build), `PyQt6.QtPdf`, `PyQt6.QtPdfWidgets` (new PDF preview), and `pythoncom` (used by docx_pdf/preview worker). Result:
+```python
+    hiddenimports=[
+        'win32com.shell',
+        'win32com.shell.shell',
+        'win32timezone',
+        'pythoncom',
+        'PyQt6.QtWebChannel',
+        'PyQt6.QtPdf',
+        'PyQt6.QtPdfWidgets',
+    ],
+```
+Leave `datas` (templates/A250.docx + assets) and everything else unchanged.
 
-- [ ] **Step 2: Rebuild the frozen exe**
+- [ ] **Step 2: Rebuild the frozen app**
 
-Run: `.venv/Scripts/python.exe -m PyInstaller app.spec --noconfirm`
-Expected: build completes without errors.
+Run: `.venv/Scripts/python.exe -m PyInstaller ClickFolder_v2.spec --noconfirm`
+Expected: build completes without errors; output at `dist/ClickFolder_v2/ClickFolder_v2.exe`.
 
-- [ ] **Step 3: Smoke-test the frozen build**
+- [ ] **Step 3: Smoke-test the frozen build (MANUAL — controller/user)**
 
-Run: `dist/app/app.exe` (or `dist/app.exe`)
-- Open Create A250 → confirm the PDF preview renders (QtPdf plugin bundled; Word COM works via dynamic Dispatch).
+Run: `dist/ClickFolder_v2/ClickFolder_v2.exe`
+- Open Create A250 → confirm the rich-text editor loads (QtWebChannel bundled) and the PDF preview renders (QtPdf plugin bundled; Word COM works via dynamic Dispatch).
+This step needs a live display + Word + interaction — defer to manual verification.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add app.spec
-git commit -m "build(a250): bundle QtPdf + pywin32 for exact preview"
+git add ClickFolder_v2.spec
+git commit -m "build(a250): bundle QtWebChannel + QtPdf + pythoncom in ClickFolder_v2.spec"
 ```
 
 ---
