@@ -512,6 +512,8 @@ class FolderSetupApp(QMainWindow):
         # ---- Left: scrollable form ----
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+        # Keep the form usable: never let it collapse below ~25% of the dialog.
+        scroll.setMinimumWidth(300)
         container = QWidget()
         container_layout = QVBoxLayout(container)
         scroll.setWidget(container)
@@ -527,6 +529,9 @@ class FolderSetupApp(QMainWindow):
         # 50/50 — the rendered document is now the focus of the dialog (review).
         splitter.setStretchFactor(0, 50)
         splitter.setStretchFactor(1, 50)
+        # Explicit initial split so the form starts at ~half the width (well
+        # above the 25% floor) instead of being squeezed by the PDF pane's hint.
+        splitter.setSizes([575, 575])
 
         a250_vars = {}
         COMBO_FIELDS = {

@@ -6,6 +6,7 @@ coalesce to the latest input.
 """
 from __future__ import annotations
 
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -31,8 +32,12 @@ class A250PreviewWorker(QObject):
         self._word = None
         self._busy = False
         self._pending = None            # latest raw dict awaiting render, or None
-        self._tmp_dir = Path(tempfile.gettempdir()) / "a250_preview"
-        self._tmp_dir.mkdir(parents=True, exist_ok=True)
+        # Private per-instance temp dir. A fixed shared path (e.g.
+        # %TEMP%/a250_preview/preview.docx) can be locked by a leftover/zombie
+        # Word process from a prior session, permanently blocking renders with
+        # "file in use" / PermissionError (Errno 13). A unique dir per worker
+        # isolates this session from any other process's stale locks.
+        self._tmp_dir = Path(tempfile.mkdtemp(prefix="a250_preview_"))
         self._toggle = False            # ping-pong between two pdf paths
 
     @pyqtSlot()
@@ -103,8 +108,5 @@ class A250PreviewWorker(QObject):
             pythoncom.CoUninitialize()
         except Exception:
             pass
-        for p in self._tmp_dir.glob("preview*.*"):
-            try:
-                p.unlink()
-            except Exception:
-                pass
+        # Remove the whole private temp dir (docx + ping-pong PDFs).
+        shutil.rmtree(self._tmp_dir, ignore_errors=True)

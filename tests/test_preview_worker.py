@@ -1,4 +1,7 @@
 import sys
+import tempfile
+from pathlib import Path
+
 import pytest
 from PyQt6.QtWidgets import QApplication
 from workers.preview_worker import A250PreviewWorker
@@ -7,6 +10,29 @@ from workers.preview_worker import A250PreviewWorker
 @pytest.fixture(scope="module")
 def qapp():
     yield QApplication.instance() or QApplication(sys.argv)
+
+
+def test_each_worker_gets_a_unique_temp_dir(qapp):
+    """Each worker must render into its own private temp dir so a stale Word
+    lock from a prior session (on a fixed path like %TEMP%/a250_preview/
+    preview.docx) can never block this session's renders (Errno 13)."""
+    w1 = A250PreviewWorker(render_fn=lambda r, o: None, converter=lambda d, p: None)
+    w2 = A250PreviewWorker(render_fn=lambda r, o: None, converter=lambda d, p: None)
+    assert w1._tmp_dir != w2._tmp_dir
+    assert w1._tmp_dir.exists() and w2._tmp_dir.exists()
+    # Lives under the OS temp root, not the project tree.
+    assert str(w1._tmp_dir).startswith(tempfile.gettempdir())
+
+
+def test_shutdown_removes_temp_dir(qapp):
+    """shutdown() must delete the worker's private temp dir (with its rendered
+    docx/pdf) so preview files don't accumulate across sessions."""
+    w = A250PreviewWorker(render_fn=lambda r, o: None, converter=lambda d, p: None)
+    tmp = w._tmp_dir
+    (tmp / "preview.docx").write_bytes(b"x")   # simulate a rendered artifact
+    assert tmp.exists()
+    w.shutdown()
+    assert not tmp.exists()
 
 
 def test_coalesces_to_latest_request(qapp):
