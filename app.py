@@ -9,11 +9,14 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton, QProgressBar, QTextEdit,
     QFileDialog, QMessageBox, QDialog, QScrollArea, QFormLayout,
-    QDialogButtonBox, QGroupBox, QComboBox, QCheckBox, QSplitter, QTextBrowser
+    QDialogButtonBox, QGroupBox, QComboBox, QCheckBox, QSplitter
 )
-from PyQt6.QtCore import Qt, pyqtSlot, QEvent, QTimer
+from PyQt6.QtCore import Qt, pyqtSlot, QEvent, QTimer, QThread, pyqtSignal, QObject
 from PyQt6.QtGui import QTextCursor, QFont
 from docxtpl import DocxTemplate
+from utils.a250_preview_pane import A250PreviewPane
+from workers import A250PreviewWorker
+from utils.docx_pdf import word_available
 
 from config import (
     DEFAULT_MARKETING_TEMPLATE, DEFAULT_WORK_TEMPLATE,
@@ -508,15 +511,16 @@ class FolderSetupApp(QMainWindow):
         scroll.setWidget(container)
         splitter.addWidget(scroll)
 
-        # ---- Right: live preview ----
+        # ---- Right: live document preview (exact rendered PDF) ----
         preview_panel = QWidget()
         pv_layout = QVBoxLayout(preview_panel)
-        pv_layout.addWidget(QLabel("Preview — how your entries map to the document"))
-        preview = QTextBrowser()
+        pv_layout.addWidget(QLabel("Preview — exact document output"))
+        preview = A250PreviewPane()
         pv_layout.addWidget(preview)
         splitter.addWidget(preview_panel)
-        splitter.setStretchFactor(0, 55)
-        splitter.setStretchFactor(1, 45)
+        # 50/50 — the rendered document is now the focus of the dialog (review).
+        splitter.setStretchFactor(0, 50)
+        splitter.setStretchFactor(1, 50)
 
         a250_vars = {}
         COMBO_FIELDS = {
@@ -550,27 +554,84 @@ class FolderSetupApp(QMainWindow):
 
         container_layout.addStretch()
 
-        # ---- Debounced live preview refresh ----
-        preview_timer = QTimer(dialog)
-        preview_timer.setSingleShot(True)
-        preview_timer.setInterval(300)
-        preview_timer.timeout.connect(lambda: self._refresh_preview(a250_vars, preview))
+        # ---- Live preview: worker thread + debounced refresh ----
+        self._preview_thread = None
+        self._preview_worker = None
+        if not word_available():
+            preview.show_unavailable("MS Word required for preview")
+        else:
+            # Signal used to hand a raw dict to the worker thread (queued).
+            class _Emitter(QObject):
+                request = pyqtSignal(dict)
+            emitter = _Emitter(dialog)
 
-        def schedule(*_):
-            preview_timer.start()  # restart cancels the prior pending fire
+            thread = QThread(dialog)
+            worker = A250PreviewWorker()
+            worker.moveToThread(thread)
+            thread.started.connect(worker.setup)
+            emitter.request.connect(worker.request_render)      # queued (cross-thread)
 
-        for key, widget in a250_vars.items():
-            if isinstance(widget, QComboBox):
-                widget.currentTextChanged.connect(schedule)
-            elif isinstance(widget, WebRichTextEditor):
-                widget.set_change_callback(schedule)
-            elif isinstance(widget, QTextEdit):
-                widget.textChanged.connect(schedule)
-            else:
-                widget.textChanged.connect(schedule)
+            # Watchdog: if neither finished nor failed arrives (Word hung/stalled),
+            # surface a timeout instead of an "updating…" badge that spins forever.
+            watchdog = QTimer(dialog)
+            watchdog.setSingleShot(True)
+            watchdog.setInterval(20000)
+            watchdog.timeout.connect(
+                lambda: preview.show_error("Preview timed out — Word not responding.")
+            )
 
-        # Initial render (fields empty)
-        self._refresh_preview(a250_vars, preview)
+            def _on_finished(p):
+                watchdog.stop()
+                preview.show_pdf(p)          # hides message/error, preserves scroll
+                preview.set_updating(False)
+
+            def _on_failed(m):
+                watchdog.stop()
+                preview.show_error(m)        # visible in the pane, not just the log
+                self.write_log(f"A250 preview failed: {m}", "error")
+
+            worker.finished.connect(_on_finished)
+            worker.failed.connect(_on_failed)
+            thread.start()
+            self._preview_thread = thread
+            self._preview_worker = worker
+
+            preview_timer = QTimer(dialog)
+            preview_timer.setSingleShot(True)
+            preview_timer.setInterval(1500)
+
+            def _fire():
+                raw = self._collect_a250_raw(a250_vars, use_cache=True)
+                preview.set_updating(True)
+                watchdog.start()
+                emitter.request.emit(raw)
+
+            preview_timer.timeout.connect(_fire)
+
+            def schedule(*_):
+                preview_timer.start()
+
+            for key, widget in a250_vars.items():
+                if isinstance(widget, QComboBox):
+                    widget.currentTextChanged.connect(schedule)
+                elif isinstance(widget, WebRichTextEditor):
+                    widget.set_change_callback(schedule)
+                elif isinstance(widget, QTextEdit):
+                    widget.textChanged.connect(schedule)
+                else:
+                    widget.textChanged.connect(schedule)
+
+            # Initial render on open: show a rendering state (covers Word cold-start,
+            # ~2-3s) so the pane is never a blank white void, then fire.
+            preview.show_rendering()
+            _fire()
+
+            # Clean up the worker + thread when the dialog closes.
+            def _cleanup():
+                worker.shutdown()
+                thread.quit()
+                thread.wait(5000)
+            dialog.finished.connect(lambda _=None: _cleanup())
 
         # ---- Buttons ----
         btn_box = QDialogButtonBox()
@@ -582,64 +643,6 @@ class FolderSetupApp(QMainWindow):
         cancel_btn.clicked.connect(dialog.reject)
 
         dialog.exec()
-
-    def _refresh_preview(self, a250_vars: dict, preview: QTextBrowser) -> None:
-        """Recompute the resolved-values preview from current field values."""
-        try:
-            raw = self._collect_a250_raw(a250_vars, use_cache=True)
-            ctx = build_a250_context(raw)
-            rich_keys = {k for k, w in a250_vars.items() if isinstance(w, WebRichTextEditor)}
-            preview.setHtml(self._render_preview_html(ctx, rich_keys))
-        except Exception as e:  # never let the preview crash the form
-            import html as _h
-            preview.setHtml(
-                f"<p style='color:#c0392b'>Preview unavailable: {_h.escape(str(e))}</p>"
-            )
-
-    def _render_preview_html(self, ctx: dict, rich_keys: set) -> str:
-        """Render the template context as grouped HTML for the QTextBrowser."""
-        import html as _h
-
-        def cell(key: str) -> str:
-            v = ctx.get(key, "")
-            if key in rich_keys:
-                return v if (v and v.strip() and v.strip() != "<p></p>") \
-                    else "<span style='color:#999'>&mdash;</span>"
-            v = "" if v is None else str(v)
-            if not v.strip():
-                return "<span style='color:#999'>&mdash;</span>"
-            return _h.escape(v).replace("\n", "<br>")
-
-        parts = [
-            "<style>"
-            "body{font-family:'Segoe UI',sans-serif;font-size:13px;}"
-            "h3{margin:12px 0 4px;font-size:13px;border-bottom:1px solid #ccc;}"
-            "h3.comp{color:#2d7d46;}"
-            "table{width:100%;border-collapse:collapse;}"
-            "td{padding:2px 6px;vertical-align:top;}"
-            "td.lbl{color:#555;width:40%;}"
-            "td.comp{color:#2d7d46;font-weight:bold;}"
-            ".note{color:#999;font-weight:normal;font-size:11px;}"
-            "</style>"
-        ]
-        for section_title, field_pairs in A250_FIELD_GROUPS:
-            parts.append(f"<h3>{_h.escape(section_title)}</h3><table>")
-            for key, label in field_pairs:
-                parts.append(
-                    f"<tr><td class='lbl'>{_h.escape(label)}</td><td>{cell(key)}</td></tr>"
-                )
-            parts.append("</table>")
-
-        parts.append("<h3 class='comp'>Derived &amp; Composite</h3><table>")
-        for key in A250_COMPOSITE_KEYS:
-            note = A250_COMPOSITE_NOTES.get(key, "")
-            parts.append(
-                f"<tr><td class='lbl comp'>{_h.escape(key)}"
-                f"<br><span class='note'>{_h.escape(note)}</span></td>"
-                f"<td>{cell(key)}</td></tr>"
-            )
-        parts.append("</table>")
-        return "".join(parts)
 
     def _collect_a250_raw(self, a250_vars: dict, use_cache: bool = False) -> dict:
         """Gather raw string values from every A250 widget.
