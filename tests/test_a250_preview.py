@@ -1,8 +1,11 @@
 import sys
+import threading
 import pytest
 from unittest.mock import Mock
-from PyQt6.QtWidgets import QApplication, QLineEdit, QComboBox, QTextEdit, QTextBrowser
+from PyQt6.QtCore import Qt, QMetaObject, QThread
+from PyQt6.QtWidgets import QApplication, QLineEdit, QComboBox, QTextEdit
 from utils.web_editor import WebRichTextEditor
+from workers.preview_worker import A250PreviewWorker
 
 
 @pytest.fixture(scope="module")
@@ -37,40 +40,6 @@ def _vars(overrides=None):
     return v
 
 
-def test_preview_shows_composites_and_formatted_fee(qapp):
-    from app import FolderSetupApp
-    window = FolderSetupApp()
-    a250_vars = _vars({
-        "client_name": "Jane Doe", "client_title": "Director",
-        "client_license": "PE", "client": "Acme Corp", "fee": "5000",
-    })
-    preview = QTextBrowser()
-    window._refresh_preview(a250_vars, preview)
-    text = preview.toPlainText()
-    assert "requested_by" in text
-    assert "client_signed" in text
-    assert "5,000.00" in text          # formatted fee visible
-    assert "Jane Doe" in text          # composite resolved and shown
-
-
-def test_preview_renders_rich_text_formatting(qapp):
-    from app import FolderSetupApp
-    window = FolderSetupApp()
-    a250_vars = _vars({"detailed_scope": "<p><strong>Bold scope</strong></p>"})
-    preview = QTextBrowser()
-    window._refresh_preview(a250_vars, preview)
-    # QTextBrowser converts <strong> to bold; the text content survives
-    assert "Bold scope" in preview.toPlainText()
-
-
-def test_preview_never_raises_on_bad_widget(qapp):
-    from app import FolderSetupApp
-    window = FolderSetupApp()
-    preview = QTextBrowser()
-    window._refresh_preview({}, preview)  # empty -> still renders section headers
-    assert "Derived" in preview.toPlainText()
-
-
 def test_collect_raw_never_syncs_on_preview(qapp):
     """Preview (use_cache=True) must NOT call get_html_sync — the editor page may
     not be loaded yet, which throws 'getContent is not defined' in JS."""
@@ -82,3 +51,48 @@ def test_collect_raw_never_syncs_on_preview(qapp):
     raw = window._collect_a250_raw({"detailed_scope": ed}, use_cache=True)
     assert raw["detailed_scope"] == ""
     ed.get_html_sync.assert_not_called()
+
+
+def test_render_a250_docx_matches_generation_path(tmp_path):
+    """Preview and Generate share render_a250_docx — same raw yields same doc text."""
+    from app import render_a250_docx
+    import zipfile
+    raw = {"project_title": "Shared Path", "fee": "1200"}
+    a = tmp_path / "a.docx"
+    b = tmp_path / "b.docx"
+    render_a250_docx(raw, a)
+    render_a250_docx(raw, b)
+    xa = zipfile.ZipFile(a).read("word/document.xml").decode("utf-8")
+    xb = zipfile.ZipFile(b).read("word/document.xml").decode("utf-8")
+    assert "Shared Path" in xa
+    assert "1,200.00" in xa
+    assert xa == xb
+
+
+def test_shutdown_marshaled_runs_on_worker_thread(qapp):
+    """Cleanup must invoke shutdown() ON the worker thread (BlockingQueuedConnection),
+    not directly from the GUI thread — a direct call would hit the Word COM object
+    from the wrong apartment and raise (swallowed by shutdown's bare except),
+    leaving WINWORD.EXE running. This mirrors app.py's _cleanup wiring."""
+    worker = A250PreviewWorker(render_fn=lambda raw, path: None, converter=lambda a, b: None)
+    thread = QThread()
+    worker.moveToThread(thread)
+    thread.start()
+
+    # Fake Word object recording which thread .Quit() actually executed on.
+    quit_thread_ident = {}
+    fake_word = Mock()
+    fake_word.Quit = Mock(side_effect=lambda: quit_thread_ident.setdefault("id", threading.get_ident()))
+    worker._word = fake_word
+
+    main_thread_ident = threading.get_ident()
+    try:
+        QMetaObject.invokeMethod(worker, "shutdown", Qt.ConnectionType.BlockingQueuedConnection)
+        assert quit_thread_ident.get("id") is not None, "shutdown() never ran"
+        assert quit_thread_ident["id"] != main_thread_ident, (
+            "shutdown() ran on the GUI thread, not the worker thread"
+        )
+        assert worker._word is None  # shutdown cleared it after Quit()
+    finally:
+        thread.quit()
+        thread.wait(5000)

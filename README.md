@@ -11,7 +11,7 @@ MarketingFolderCreation/
 ├── app.py                     # Main GUI — FolderSetupApp window, WorkerThread, A250 dialog
 ├── config.py                  # Default path configuration (template/target defaults)
 ├── logger.py                  # Timestamped, color-coded log function
-├── MarketingFolderCreation.spec  # PyInstaller spec (--onedir, production build)
+├── ClickFolder_v2.spec       # PyInstaller spec (--onedir, production build)
 ├── templates/
 │   └── A250.docx              # Word template for A250 fee proposals (docxtpl)
 ├── operations/
@@ -142,10 +142,10 @@ pip install pyinstaller
 **Build the bundle:**
 
 ```bash
-pyinstaller MarketingFolderCreation.spec
+pyinstaller ClickFolder_v2.spec
 ```
 
-Output: `dist/MarketingFolderCreation/`
+Output: `dist/ClickFolder_v2/`
 
 **What gets bundled automatically:**
 - All PyQt6 DLLs and platform plugins
@@ -153,15 +153,15 @@ Output: `dist/MarketingFolderCreation/`
 - win32com, docxtpl, and all other dependencies
 - Application icon (`FolderCreatorTool.ico`)
 
-**Distribute:** Copy the entire `dist/MarketingFolderCreation/` folder to the network share. Users double-click `MarketingFolderCreation.exe` — no Python installation required.
+**Distribute:** Copy the entire `dist/ClickFolder_v2/` folder to the network share. Users double-click `ClickFolder_v2.exe` — no Python installation required.
 
 **Rebuild after code changes:**
 
 ```bash
-pyinstaller MarketingFolderCreation.spec
+pyinstaller ClickFolder_v2.spec
 ```
 
-PyInstaller overwrites `dist/MarketingFolderCreation/` on each build. The `build/` folder is intermediate and can be deleted safely.
+PyInstaller overwrites `dist/ClickFolder_v2/` on each build. The `build/` folder is intermediate and can be deleted safely.
 
 ---
 
