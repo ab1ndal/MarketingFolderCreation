@@ -1,8 +1,11 @@
 import sys
+import threading
 import pytest
 from unittest.mock import Mock
+from PyQt6.QtCore import Qt, QMetaObject, QThread
 from PyQt6.QtWidgets import QApplication, QLineEdit, QComboBox, QTextEdit
 from utils.web_editor import WebRichTextEditor
+from workers.preview_worker import A250PreviewWorker
 
 
 @pytest.fixture(scope="module")
@@ -64,3 +67,32 @@ def test_render_a250_docx_matches_generation_path(tmp_path):
     assert "Shared Path" in xa
     assert "1,200.00" in xa
     assert xa == xb
+
+
+def test_shutdown_marshaled_runs_on_worker_thread(qapp):
+    """Cleanup must invoke shutdown() ON the worker thread (BlockingQueuedConnection),
+    not directly from the GUI thread — a direct call would hit the Word COM object
+    from the wrong apartment and raise (swallowed by shutdown's bare except),
+    leaving WINWORD.EXE running. This mirrors app.py's _cleanup wiring."""
+    worker = A250PreviewWorker(render_fn=lambda raw, path: None, converter=lambda a, b: None)
+    thread = QThread()
+    worker.moveToThread(thread)
+    thread.start()
+
+    # Fake Word object recording which thread .Quit() actually executed on.
+    quit_thread_ident = {}
+    fake_word = Mock()
+    fake_word.Quit = Mock(side_effect=lambda: quit_thread_ident.setdefault("id", threading.get_ident()))
+    worker._word = fake_word
+
+    main_thread_ident = threading.get_ident()
+    try:
+        QMetaObject.invokeMethod(worker, "shutdown", Qt.ConnectionType.BlockingQueuedConnection)
+        assert quit_thread_ident.get("id") is not None, "shutdown() never ran"
+        assert quit_thread_ident["id"] != main_thread_ident, (
+            "shutdown() ran on the GUI thread, not the worker thread"
+        )
+        assert worker._word is None  # shutdown cleared it after Quit()
+    finally:
+        thread.quit()
+        thread.wait(5000)

@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QFileDialog, QMessageBox, QDialog, QScrollArea, QFormLayout,
     QDialogButtonBox, QGroupBox, QComboBox, QCheckBox, QSplitter
 )
-from PyQt6.QtCore import Qt, pyqtSlot, QEvent, QTimer, QThread, pyqtSignal, QObject
+from PyQt6.QtCore import Qt, pyqtSlot, QEvent, QTimer, QThread, pyqtSignal, QObject, QMetaObject
 from PyQt6.QtGui import QTextCursor, QFont
 from docxtpl import DocxTemplate
 from utils.a250_preview_pane import A250PreviewPane
@@ -628,7 +628,15 @@ class FolderSetupApp(QMainWindow):
 
             # Clean up the worker + thread when the dialog closes.
             def _cleanup():
-                worker.shutdown()
+                # worker.shutdown() touches the Word COM object + CoUninitialize,
+                # both of which live on the worker thread. Marshal the call there
+                # via a blocking queued invocation (worker's event loop is still
+                # running until thread.quit() below) instead of calling it
+                # directly from the GUI thread, which would raise a
+                # wrong-apartment COM error and leave WINWORD.EXE running.
+                QMetaObject.invokeMethod(
+                    worker, "shutdown", Qt.ConnectionType.BlockingQueuedConnection
+                )
                 thread.quit()
                 thread.wait(5000)
             dialog.finished.connect(lambda _=None: _cleanup())
