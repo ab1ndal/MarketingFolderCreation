@@ -469,9 +469,13 @@ git commit -m "feat(a250): preview worker with Word COM + request coalescing"
 
 **Interfaces:**
 - Produces: `A250PreviewPane(QWidget)`
-  - `show_pdf(path: str) -> None` — load the PDF into the `QPdfView`.
-  - `set_updating(on: bool) -> None` — show/hide the "updating…" overlay label.
-  - `show_unavailable(msg: str) -> None` — display a centered message (Word missing / error) and hide the PDF view.
+  - `show_pdf(path: str) -> None` — load the PDF into the `QPdfView`, preserving the current scroll position across the reload; clears any message/error overlay.
+  - `set_updating(on: bool) -> None` — show/hide the "updating…" badge.
+  - `show_unavailable(msg: str) -> None` — centered full-pane message; hide the PDF view (Word missing).
+  - `show_rendering() -> None` — centered "Rendering preview…" message shown before the first PDF exists (covers Word cold-start).
+  - `show_error(msg: str) -> None` — surface a render failure. If a prior PDF exists, show a bottom banner over it (so the user knows the shown doc is stale); if none exists yet, show it as a full-pane message. Always clears "updating…".
+
+UX rationale (from review): first render has a distinct rendering state (no blank-white stare), scroll survives the 1.5s refresh reloads, and failures are visible in the pane rather than only in the log.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -490,15 +494,30 @@ def qapp():
 
 def test_pane_exposes_interface(qapp):
     pane = A250PreviewPane()
-    assert hasattr(pane, "show_pdf")
-    assert hasattr(pane, "set_updating")
-    assert hasattr(pane, "show_unavailable")
+    for m in ("show_pdf", "set_updating", "show_unavailable", "show_rendering", "show_error"):
+        assert hasattr(pane, m)
     # State toggles must not raise.
     pane.set_updating(True)
     pane.set_updating(False)
+    pane.show_rendering()
+    assert "Rendering" in pane._message.text()
     pane.show_unavailable("MS Word required for preview")
     assert pane._message.text() == "MS Word required for preview"
-    assert pane._message.isVisible() or True  # visibility set; not shown() in test
+
+
+def test_error_before_any_pdf_shows_full_message(qapp):
+    pane = A250PreviewPane()
+    pane.show_error("boom")
+    assert "boom" in pane._message.text()
+    assert not pane._updating.isVisible()
+
+
+def test_error_after_pdf_shows_banner(qapp):
+    pane = A250PreviewPane()
+    pane._has_pdf = True                      # simulate a prior successful render
+    pane.show_error("boom")
+    assert "boom" in pane._error.text()
+    assert not pane._message.isVisible()      # PDF stays; banner over it
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -510,20 +529,30 @@ Expected: FAIL with `ModuleNotFoundError: No module named 'utils.a250_preview_pa
 
 ```python
 # utils/a250_preview_pane.py
-"""PDF preview pane for the A250 dialog — shows the exact rendered document."""
+"""PDF preview pane for the A250 dialog — shows the exact rendered document.
+
+States (StackAll overlay):
+  - _view    : the QPdfView (base layer)
+  - _message : full-pane centered text (rendering / Word-missing / first-error)
+  - _updating: top-right opaque badge shown during a refresh
+  - _error   : bottom opaque banner shown over a stale PDF after a failure
+Scroll position is preserved across reloads so the 1.5s refresh doesn't yank
+the user back to page 1 while they read Exhibit A / Terms.
+"""
 from __future__ import annotations
 
 from PyQt6.QtWidgets import QWidget, QStackedLayout, QLabel
-from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtCore import Qt
 from PyQt6.QtPdf import QPdfDocument
 from PyQt6.QtPdfWidgets import QPdfView
 
 
 class A250PreviewPane(QWidget):
-    """QPdfView-based pane with 'updating…' overlay and an unavailable message."""
-
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._has_pdf = False
+        self._pending_scroll = 0
+
         self._layout = QStackedLayout(self)
         self._layout.setStackingMode(QStackedLayout.StackingMode.StackAll)
 
@@ -533,44 +562,84 @@ class A250PreviewPane(QWidget):
         self._view.setPageMode(QPdfView.PageMode.MultiPage)
         self._view.setZoomMode(QPdfView.ZoomMode.FitToWidth)
         self._layout.addWidget(self._view)
+        # Restore scroll once the (async) load finishes.
+        self._doc.statusChanged.connect(self._on_status)
 
         self._message = QLabel("", self)
+        self._message.setWordWrap(True)
         self._message.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._message.setStyleSheet("color:#666; background:#f4f4f4; font-size:14px;")
+        self._message.setStyleSheet("color:#555; background:#f4f4f4; font-size:14px; padding:24px;")
         self._message.hide()
         self._layout.addWidget(self._message)
 
+        # Opaque pill so it reads over any page content (review: contrast fix).
         self._updating = QLabel("updating…", self)
         self._updating.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
         self._updating.setStyleSheet(
-            "color:#2d7d46; background:rgba(255,255,255,180);"
-            "font-size:12px; padding:4px 8px;"
+            "color:#ffffff; background:#2d7d46; font-size:12px;"
+            "font-weight:bold; padding:4px 10px; border-radius:3px;"
         )
+        self._updating.setFixedHeight(24)
         self._updating.hide()
         self._layout.addWidget(self._updating)
+
+        self._error = QLabel("", self)
+        self._error.setWordWrap(True)
+        self._error.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter)
+        self._error.setStyleSheet(
+            "color:#ffffff; background:#c0392b; font-size:12px; padding:8px 12px;"
+        )
+        self._error.hide()
+        self._layout.addWidget(self._error)
+
         self._layout.setCurrentWidget(self._view)
 
+    def _on_status(self, status) -> None:
+        if status == QPdfDocument.Status.Ready:
+            self._view.verticalScrollBar().setValue(self._pending_scroll)
+
     def show_pdf(self, path: str) -> None:
+        self._pending_scroll = self._view.verticalScrollBar().value()
         self._message.hide()
+        self._error.hide()
         self._view.show()
         self._doc.load(path)
+        self._has_pdf = True
 
     def set_updating(self, on: bool) -> None:
         self._updating.setVisible(on)
-        self._updating.raise_()
+        if on:
+            self._updating.raise_()
+
+    def show_rendering(self) -> None:
+        self._show_message("Rendering preview…")
 
     def show_unavailable(self, msg: str) -> None:
-        self._message.setText(msg)
-        self._view.hide()
+        self._show_message(msg)
+
+    def show_error(self, msg: str) -> None:
+        self.set_updating(False)
+        if self._has_pdf:
+            # Keep the (stale) PDF visible; banner tells the user it's outdated.
+            self._error.setText(f"{msg}\nShowing last successful render.")
+            self._error.show()
+            self._error.raise_()
+        else:
+            self._show_message(f"Preview failed:\n{msg}")
+
+    def _show_message(self, text: str) -> None:
+        self._message.setText(text)
+        self._error.hide()
         self._updating.hide()
+        self._view.hide()
         self._message.show()
         self._message.raise_()
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 4: Run tests to verify they pass**
 
 Run: `.venv/Scripts/python.exe -m pytest tests/test_a250_preview_pane.py -v`
-Expected: PASS
+Expected: PASS (all three tests)
 
 - [ ] **Step 5: Commit**
 
@@ -616,8 +685,9 @@ Replace the `# ---- Right: live preview ----` block (`app.py:482-490`) with:
         preview = A250PreviewPane()
         pv_layout.addWidget(preview)
         splitter.addWidget(preview_panel)
-        splitter.setStretchFactor(0, 55)
-        splitter.setStretchFactor(1, 45)
+        # 50/50 — the rendered document is now the focus of the dialog (review).
+        splitter.setStretchFactor(0, 50)
+        splitter.setStretchFactor(1, 50)
 ```
 
 - [ ] **Step 3: Replace the debounce/refresh wiring in `_open_a250_form`**
@@ -641,8 +711,28 @@ Replace the `# ---- Debounced live preview refresh ----` block through the initi
             worker.moveToThread(thread)
             thread.started.connect(worker.setup)
             emitter.request.connect(worker.request_render)      # queued (cross-thread)
-            worker.finished.connect(lambda p: (preview.show_pdf(p), preview.set_updating(False)))
-            worker.failed.connect(lambda m: (preview.set_updating(False), self.write_log(f"Preview failed: {m}", "error")))
+
+            # Watchdog: if neither finished nor failed arrives (Word hung/stalled),
+            # surface a timeout instead of an "updating…" badge that spins forever.
+            watchdog = QTimer(dialog)
+            watchdog.setSingleShot(True)
+            watchdog.setInterval(20000)
+            watchdog.timeout.connect(
+                lambda: preview.show_error("Preview timed out — Word not responding.")
+            )
+
+            def _on_finished(p):
+                watchdog.stop()
+                preview.show_pdf(p)          # hides message/error, preserves scroll
+                preview.set_updating(False)
+
+            def _on_failed(m):
+                watchdog.stop()
+                preview.show_error(m)        # visible in the pane, not just the log
+                self.write_log(f"A250 preview failed: {m}", "error")
+
+            worker.finished.connect(_on_finished)
+            worker.failed.connect(_on_failed)
             thread.start()
             self._preview_thread = thread
             self._preview_worker = worker
@@ -654,6 +744,7 @@ Replace the `# ---- Debounced live preview refresh ----` block through the initi
             def _fire():
                 raw = self._collect_a250_raw(a250_vars, use_cache=True)
                 preview.set_updating(True)
+                watchdog.start()
                 emitter.request.emit(raw)
 
             preview_timer.timeout.connect(_fire)
@@ -671,7 +762,9 @@ Replace the `# ---- Debounced live preview refresh ----` block through the initi
                 else:
                     widget.textChanged.connect(schedule)
 
-            # Initial render on open (empty fields → blank template).
+            # Initial render on open: show a rendering state (covers Word cold-start,
+            # ~2-3s) so the pane is never a blank white void, then fire.
+            preview.show_rendering()
             _fire()
 
             # Clean up the worker + thread when the dialog closes.
@@ -717,8 +810,10 @@ Expected: PASS (obsolete tests removed, new tests pass).
 - [ ] **Step 7: Manual smoke check**
 
 Run: `.venv/Scripts/python.exe app.py`
-- Open Create A250. Confirm the right pane shows the rendered A250 PDF (blank template on open).
-- Type a project title, pause ~1.5s → "updating…" appears, then the PDF refreshes showing the value in position.
+- Open Create A250. Confirm the pane shows "Rendering preview…" during Word cold-start, then the rendered A250 PDF (blank template).
+- Type a project title, pause ~1.5s → opaque "updating…" badge appears, then the PDF refreshes showing the value in position.
+- Scroll to Exhibit A / Terms (page 2–3), edit a field, pause → confirm the pane refreshes **without** jumping back to page 1 (scroll preserved).
+- Close Word (or kill `WINWORD.EXE`) mid-session, edit a field → confirm a red error banner appears over the last render (not a silent failure), within ~20s at most.
 - Close the dialog → confirm no lingering `WINWORD.EXE` in Task Manager.
 
 - [ ] **Step 8: Commit**
@@ -770,14 +865,22 @@ git commit -m "build(a250): bundle QtPdf + pywin32 for exact preview"
 - Exact pipeline (docx→PDF via Word) → Task 1 + Task 3. ✓
 - Shared `render_a250_docx` (no drift) → Task 2. ✓
 - Worker + coalescing + ping-pong temps + cleanup → Task 3. ✓
-- `A250PreviewPane` (QPdfView, updating, unavailable) → Task 4. ✓
+- `A250PreviewPane` (QPdfView, updating, unavailable, rendering, error, scroll-preserve) → Task 4. ✓
 - Dialog wiring: 1500ms debounce, main-thread raw collection, queued signal, word_available gate, close cleanup → Task 5. ✓
 - Removed `_render_preview_html`/`QTextBrowser`/composite tables → Task 5. ✓
-- Tests (docx render, Word-gated convert, coalescing, pane interface, shared path) → Tasks 1,3,4,5. ✓
+- Tests (docx render, Word-gated convert, coalescing, pane interface + error states, shared path) → Tasks 1,3,4,5. ✓
 - Packaging (QtPdf + pywin32) → Task 6. ✓
+
+**UX review findings folded in (ui-ux-pro-max universal rules):**
+- First-render state (`empty-states`): `show_rendering()` shown on open before first PDF → Task 4 + Task 5 Step 3. ✓
+- Scroll preservation (`state-preservation`/`content-jumping`): saved/restored across reloads via `statusChanged` → Task 4. ✓
+- Error visible in pane (`error-clarity`/`error-recovery`): `show_error()` banner over stale PDF / full message if none → Task 4 + Task 5 `_on_failed`. ✓
+- Timeout watchdog (`timeout-feedback`): 20s `QTimer` → `show_error` → Task 5 Step 3. ✓
+- Opaque "updating…" badge (`contrast-readability`): solid green pill, white text → Task 4. ✓
+- 50/50 split (`visual-hierarchy`) → Task 5 Step 2. ✓
 
 **Placeholder scan:** No TBD/TODO; all code steps show full code; commands have expected output. ✓
 
-**Type consistency:** `render_a250_docx(raw, out_path)`, `A250PreviewWorker(render_fn, converter)` with `request_render(dict)`/`finished(str)`/`failed(str)`/`setup()`/`shutdown()`, `A250PreviewPane.show_pdf/set_updating/show_unavailable`, `word_available()`/`create_word()`/`docx_to_pdf(word, docx, pdf)` — names consistent across Tasks 1–5. ✓
+**Type consistency:** `render_a250_docx(raw, out_path)`, `A250PreviewWorker(render_fn, converter)` with `request_render(dict)`/`finished(str)`/`failed(str)`/`setup()`/`shutdown()`, `A250PreviewPane.show_pdf/set_updating/show_unavailable/show_rendering/show_error`, `word_available()`/`create_word()`/`docx_to_pdf(word, docx, pdf)` — names consistent across Tasks 1–5. ✓
 
 **Note on import cycle:** `app` imports `A250PreviewWorker` from `workers` (line 28, before `render_a250_docx` is defined), and the worker needs `render_a250_docx` from `app`. A top-level `from app import render_a250_docx` in the worker would therefore fail. Resolved in the Task 3 code: the worker's `render_fn` defaults to `None` and is resolved lazily inside `_run` (`from app import render_a250_docx`), which runs only at render time, long after both modules finish importing. Tests inject a fake `render_fn`, so they never trigger the lazy import.
